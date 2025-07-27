@@ -12,26 +12,28 @@ A professional Django REST Framework API for hotel booking management with JWT a
 - **API Documentation**: Swagger/OpenAPI integration
 - **Professional API**: Clean, RESTful endpoints with proper validation
 
-## 🚀 Quick Start (macOS)
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Python 3.8+ installed on your Mac
-- pip (Python package manager)
-- Git (for cloning the repository)
+- **Python 3.8+** installed on your system
+- **pip** (Python package manager)
+- **Git** (for cloning the repository)
 
 ### 1. Clone and Setup
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/Mujadid2001/HotelBookingEngine.git
 cd HotelBookingEngine
 
-# Create virtual environment
+# Create virtual environment (macOS/Linux)
 python3 -m venv hotel_booking_env
-
-# Activate virtual environment
 source hotel_booking_env/bin/activate
+
+# Create virtual environment (Windows)
+python -m venv hotel_booking_env
+hotel_booking_env\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -40,7 +42,7 @@ pip install -r requirements.txt
 ### 2. Database Setup
 
 ```bash
-# Navigate to project directory
+# Navigate to Django project directory
 cd hotel_booking
 
 # Apply database migrations
@@ -54,34 +56,105 @@ python manage.py setup_initial_data --reset
 
 ```bash
 # Start development server
-python manage.py runserver
+python manage.py runserver 0.0.0.0:8002
 
-# Server will be available at: http://127.0.0.1:8000
+# Server will be available at:
+# - API: http://127.0.0.1:8002/api/v1/
+# - Dashboard: http://127.0.0.1:8002/
+# - Swagger UI: http://127.0.0.1:8002/swagger/
 ```
+
+### 4. Access the Application
+
+Once the server is running, you can access:
+
+- **🎛️ Interactive Dashboard**: http://127.0.0.1:8002/
+- **📚 API Documentation**: http://127.0.0.1:8002/swagger/
+- **🔗 API Root**: http://127.0.0.1:8002/api/v1/
+- **👨‍💼 Admin Panel**: http://127.0.0.1:8002/admin/
 
 ## 📚 API Documentation
 
 Once the server is running, access the interactive API documentation:
 
-- **Swagger UI**: http://127.0.0.1:8000/swagger/
-- **ReDoc**: http://127.0.0.1:8000/redoc/
-- **API Root**: http://127.0.0.1:8000/api/v1/
+- **Swagger UI**: http://127.0.0.1:8002/swagger/
+- **ReDoc**: http://127.0.0.1:8002/redoc/
+- **API Root**: http://127.0.0.1:8002/api/v1/
 
 ## 🎛️ Interactive Dashboard
 
-Access the beautiful, interactive dashboard for testing the complete API:
+The Hotel Booking Engine includes a beautiful, responsive dashboard for testing and managing the complete API without any command-line tools.
 
-- **Dashboard**: http://127.0.0.1:8000/
-- **Features**:
-  - 🔐 Authentication testing (login/register)
-  - 🏨 Hotel search with dates and capacity filtering
-  - 🏨 Hotel details and room availability
-  - 📅 Booking creation and management
-  - 👤 User profile management
-  - 📊 Real-time API status monitoring
-  - 🎨 Beautiful, modern interface with syntax highlighting
+### 🌐 Access the Dashboard
+- **URL**: http://127.0.0.1:8002/
+- **No authentication required** to view and test the API
 
-The dashboard provides a user-friendly way to test all API endpoints without needing command-line tools.
+### ✨ Dashboard Features
+
+#### 🔐 Authentication Testing
+- **User Registration**: Complete signup form with password confirmation
+- **User Login**: Secure JWT authentication
+- **Token Management**: Automatic token storage and display
+- **Logout**: Clear session and tokens
+
+#### 🏨 Hotel Discovery & Search
+- **🔍 Advanced Search**: Search hotels by check-in/check-out dates and guest capacity
+- **⚡ Quick Search**: Search hotels by capacity only (no dates required)
+- **📊 Live Results**: Real-time availability with detailed room information
+- **💰 Pricing**: Per-night and total costs for different room types
+- **🏠 Room Details**: View available rooms with floor, capacity, and view type
+
+#### 📅 Booking Management
+- **� View Bookings**: List all user bookings with status
+- **➕ Create Bookings**: Interactive booking creation form
+- **✏️ Manage Bookings**: Update or cancel existing bookings
+- **🔍 Booking Details**: Complete booking information and history
+
+#### 👤 User Profile
+- **📝 Profile Management**: View and update user information
+- **🔒 Account Security**: Change passwords and manage settings
+- **� Booking History**: Track past and upcoming reservations
+
+#### 🎨 Modern Interface
+- **📱 Responsive Design**: Works perfectly on desktop, tablet, and mobile
+- **🌈 Beautiful UI**: Modern gradient design with smooth animations
+- **💻 Code Highlighting**: Syntax-highlighted JSON responses
+- **� Real-time Updates**: Live API status monitoring
+- **� Toast Notifications**: Instant feedback for all actions
+- **📊 API Status**: Live monitoring of API health
+
+### 🚀 How to Use the Dashboard
+
+1. **Start the Server**:
+   ```bash
+   cd hotel_booking
+   python manage.py runserver 0.0.0.0:8002
+   ```
+
+2. **Open the Dashboard**:
+   - Go to http://127.0.0.1:8002/
+   - The dashboard loads with API status check
+
+3. **Test Authentication**:
+   - Register a new account or login with test accounts
+   - Tokens are automatically managed
+
+4. **Search Hotels**:
+   - Use the "Search with Dates & Capacity" for availability-based search
+   - Use "Search by Capacity Only" for quick room type discovery
+   - View detailed results with pricing and room information
+
+5. **Manage Bookings**:
+   - Create bookings using the interactive form
+   - View and manage your reservations
+   - Track booking status and history
+
+### 🎯 Dashboard Benefits
+- **No Technical Knowledge Required**: User-friendly interface for all users
+- **Complete API Testing**: Test every endpoint without command-line tools
+- **Visual Feedback**: Immediate results with beautiful formatting
+- **Development Tool**: Perfect for developers and stakeholders
+- **Demo Ready**: Professional interface for presentations
 
 ## 🔐 Test Accounts
 
@@ -117,6 +190,7 @@ POST /api/v1/auth/password-reset/ # Password reset
 ```
 GET  /api/v1/hotels/                    # List all hotels
 GET  /api/v1/hotels/search-availability/ # Search hotels with dates & capacity
+GET  /api/v1/hotels/search-capacity/    # Search hotels by capacity only
 GET  /api/v1/hotels/{id}/               # Hotel details
 GET  /api/v1/hotels/{id}/rooms/         # Hotel rooms
 GET  /api/v1/hotels/{id}/availability/  # Room availability
@@ -124,16 +198,29 @@ GET  /api/v1/hotels/{id}/amenities/     # Hotel amenities
 GET  /api/v1/hotels/{id}/location/      # Hotel location
 ```
 
-#### New: Hotel Search with Availability
+#### Hotel Search with Availability (Date-based)
 Search hotels based on dates and guest capacity:
 ```bash
-GET /api/v1/hotels/search-availability/?check_in=2024-12-25&check_out=2024-12-27&capacity=2
+GET /api/v1/hotels/search-availability/?check_in=2025-08-01&check_out=2025-08-03&capacity=2
 ```
 **Parameters:**
 - `check_in` (required): Check-in date (YYYY-MM-DD)
 - `check_out` (required): Check-out date (YYYY-MM-DD)  
 - `capacity` (optional): Number of guests (1-10)
 - `hotel_id` (optional): Specific hotel UUID
+
+**Returns**: Hotels with available rooms for the specified dates, including detailed room information, pricing, and availability counts.
+
+#### Hotel Search by Capacity Only (Quick Search)
+Search hotels by guest capacity without date requirements:
+```bash
+GET /api/v1/hotels/search-capacity/?capacity=4
+```
+**Parameters:**
+- `capacity` (required): Number of guests (1-10)
+- `hotel_id` (optional): Specific hotel UUID
+
+**Returns**: Hotels with room types that can accommodate the specified capacity, including all rooms that meet the requirements.
 
 ### Bookings
 ```
@@ -155,17 +242,25 @@ POST /api/v1/auth/verify-email/   # Email verification
 
 ## 🧪 Testing the API
 
-### Option 1: Using the Built-in Test Script
+### Option 1: Using the Interactive Dashboard (Recommended)
+The easiest way to test the API is through the built-in dashboard:
+
+1. **Start the server**: `python manage.py runserver 0.0.0.0:8002`
+2. **Open your browser**: Go to http://127.0.0.1:8002/
+3. **Test all features**: Use the beautiful interface to test authentication, search hotels, create bookings, and more
+4. **No command line needed**: Everything is visual and user-friendly
+
+### Option 2: Using the Built-in Test Script
 ```bash
 # Run comprehensive API tests
 python complete_api_test.py --check-server
 ```
 
-### Option 2: Using curl (Manual Testing)
+### Option 3: Using curl (Manual Testing)
 
 #### 1. Login and Get Token
 ```bash
-curl -X POST http://127.0.0.1:8000/api/v1/auth/login/ \
+curl -X POST http://127.0.0.1:8002/api/v1/auth/login/ \
   -H "Content-Type: application/json" \
   -d '{
     "email": "guest@example.com",
@@ -175,26 +270,33 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/login/ \
 
 #### 2. List Hotels (No authentication required)
 ```bash
-curl -X GET http://127.0.0.1:8000/api/v1/core/hotels/
+curl -X GET http://127.0.0.1:8002/api/v1/hotels/
 ```
 
-#### 3. Create Booking (Requires authentication)
+#### 3. Search Hotels with Availability
 ```bash
-curl -X POST http://127.0.0.1:8000/api/v1/bookings/ \
+curl -X GET "http://127.0.0.1:8002/api/v1/hotels/search-availability/?check_in=2025-08-01&check_out=2025-08-03&capacity=2"
+```
+
+#### 4. Create Booking (Requires authentication)
+```bash
+curl -X POST http://127.0.0.1:8002/api/v1/bookings/ \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{
-    "hotel": "HOTEL_UUID",
-    "room_type": "ROOM_TYPE_UUID",
-    "check_in": "2024-12-25",
-    "check_out": "2024-12-27",
-    "guests": 2
+    "room": "ROOM_UUID",
+    "check_in": "2025-08-01",
+    "check_out": "2025-08-03",
+    "guests": 2,
+    "primary_guest_name": "John Doe",
+    "primary_guest_email": "john@example.com",
+    "primary_guest_phone": "+1-555-0123"
   }'
 ```
 
-### Option 3: Using Swagger UI
-1. Go to http://127.0.0.1:8000/swagger/
-2. Click "Authorize" and enter JWT token
+### Option 4: Using Swagger UI
+1. Go to http://127.0.0.1:8002/swagger/
+2. Click "Authorize" and enter JWT token  
 3. Test endpoints interactively
 
 ## 📁 Project Structure
@@ -283,36 +385,99 @@ After running `setup_initial_data`, you'll have:
 
 ## 🚨 Troubleshooting
 
-### Common Issues on macOS:
+### Common Issues:
 
-#### 1. Permission Denied
+#### 1. Permission Denied (Windows/macOS/Linux)
 ```bash
-# If you get permission errors, use pip with --user flag
+# Windows: If you get permission errors
+pip install --user -r requirements.txt
+
+# macOS/Linux: If you get permission errors
 pip install --user -r requirements.txt
 ```
 
 #### 2. Python Version Issues
 ```bash
-# Make sure you're using Python 3.8+
+# Check Python version (must be 3.8+)
+python --version
 python3 --version
 
-# If needed, specify Python version
+# Windows: Use specific Python version
+python -m venv hotel_booking_env
+
+# macOS/Linux: Use specific Python version  
 python3.9 -m venv hotel_booking_env
 ```
 
 #### 3. Port Already in Use
 ```bash
-# If port 8000 is busy, use a different port
-python manage.py runserver 8001
+# If port 8002 is busy, use a different port
+python manage.py runserver 0.0.0.0:8003
+
+# Then access dashboard at: http://127.0.0.1:8003/
 ```
 
 #### 4. Database Issues
 ```bash
-# Reset database if needed
-rm db.sqlite3
+# Reset database if needed (Windows)
+del db.sqlite3
 python manage.py migrate
 python manage.py setup_initial_data --reset
+
+# Reset database if needed (macOS/Linux)
+rm db.sqlite3
+python manage.py migrate  
+python manage.py setup_initial_data --reset
 ```
+
+#### 5. Virtual Environment Issues
+```bash
+# Windows: Reactivate virtual environment
+hotel_booking_env\Scripts\activate
+
+# macOS/Linux: Reactivate virtual environment
+source hotel_booking_env/bin/activate
+
+# Verify you're in the virtual environment
+which python  # Should show path to venv
+pip list       # Should show installed packages
+```
+
+#### 6. Import Errors
+```bash
+# Make sure you're in the correct directory
+cd hotel_booking
+
+# Verify Django is installed
+python -c "import django; print(django.get_version())"
+
+# Reinstall requirements if needed
+pip install -r ../requirements.txt
+```
+
+### 📍 Quick Verification Steps
+
+1. **Check you're in the right directory**:
+   ```bash
+   pwd  # Should end with: .../HotelBookingEngine/hotel_booking
+   ls   # Should show: manage.py, accounts/, bookings/, core/, etc.
+   ```
+
+2. **Verify virtual environment is active**:
+   ```bash
+   # Should show (hotel_booking_env) in your prompt
+   python --version  # Should be 3.8+
+   ```
+
+3. **Test basic Django functionality**:
+   ```bash
+   python manage.py check  # Should show "System check identified no issues"
+   ```
+
+4. **Access the application**:
+   - Dashboard: http://127.0.0.1:8002/
+   - API: http://127.0.0.1:8002/api/v1/
+   - Swagger: http://127.0.0.1:8002/swagger/
 
 ## 📞 Support
 
