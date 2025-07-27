@@ -1,8 +1,4 @@
 # Hotel Booking Engine - Requirements
-# ==================================
-# This file contains all the dependencies for the Hotel Booking Engine
-# Cleaned and organized for production use
-
 # Core Django Framework
 Django==5.2.4
 asgiref==3.9.1
