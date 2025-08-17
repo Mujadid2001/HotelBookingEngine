@@ -18,6 +18,7 @@ urlpatterns = [
     path('search/', views.HotelSearchAPIView.as_view(), name='hotel_search'),
     path('search-availability/', views.hotel_search, name='hotel_search_availability'),
     path('search-capacity/', views.hotel_search_by_capacity, name='hotel_search_capacity'),
+    path('search-flexible/', views.hotel_search_flexible, name='hotel_search_flexible'),
     path('featured/', views.FeaturedHotelsAPIView.as_view(), name='featured_hotels'),
     
     # === INDIVIDUAL HOTEL ===
