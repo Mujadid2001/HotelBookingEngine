@@ -12,8 +12,13 @@ from datetime import datetime, timedelta
 # Base URL for the API
 BASE_URL = "http://localhost:8000/api/v1"
 
-# Test email
-TEST_EMAIL = "myhomecell7@gmail.com"
+# Test email - will be made unique for each test run
+TEST_EMAIL_BASE = "mujadid2001+test"
+
+def get_unique_test_email():
+    """Generate a unique test email for each run"""
+    timestamp = int(time.time())
+    return f"{TEST_EMAIL_BASE}{timestamp}@gmail.com"
 
 def print_response(response, title="Response"):
     """Print formatted response"""
@@ -36,9 +41,10 @@ def test_hotel_list():
 def test_register_user():
     """Register a test user"""
     print("\n👤 Registering Test User...")
+    test_email = get_unique_test_email()
     user_data = {
         "username": "testuser_" + str(int(time.time())),
-        "email": TEST_EMAIL,
+        "email": test_email,
         "password": "TestPassword123!",
         "password_confirm": "TestPassword123!",
         "first_name": "Test",
@@ -50,14 +56,14 @@ def test_register_user():
     print_response(response, "User Registration")
     
     if response.status_code == 201:
-        return user_data["username"], user_data["password"]
-    return None, None
+        return user_data["username"], user_data["password"], test_email
+    return None, None, None
 
-def test_login(username, password):
+def test_login(username, password, email):
     """Login and get JWT token"""
     print("\n🔐 Testing Login...")
     login_data = {
-        "email": TEST_EMAIL,  # Changed from username to email
+        "email": email,  # Changed from username to email
         "password": password
     }
     
@@ -65,7 +71,8 @@ def test_login(username, password):
     print_response(response, "Login")
     
     if response.status_code == 200:
-        return response.json().get("access")
+        tokens = response.json().get("tokens", {})
+        return tokens.get("access")
     return None
 
 def test_room_search():
@@ -93,7 +100,7 @@ def test_room_search():
     
     return None, search_params
 
-def test_complete_booking(token, room_data, search_criteria):
+def test_complete_booking(token, room_data, search_criteria, email):
     """Test complete booking flow"""
     print("\n💰 Testing Complete Booking Flow...")
     
@@ -108,7 +115,7 @@ def test_complete_booking(token, room_data, search_criteria):
         "booking_details": {
             "room_id": room_data.get("room_id"),
             "primary_guest_name": "Test User",
-            "primary_guest_email": TEST_EMAIL,
+            "primary_guest_email": email,
             "primary_guest_phone": "+1234567890",
             "special_requests": "Testing API - please send confirmation email"
         },
@@ -162,7 +169,6 @@ def test_hotel_search_with_location():
 def run_all_tests():
     """Run all API tests"""
     print("🚀 Starting Hotel Booking API Tests...")
-    print(f"📧 Test email: {TEST_EMAIL}")
     
     # Wait a moment for server to be ready
     print("⏳ Waiting for server to be ready...")
@@ -179,13 +185,15 @@ def run_all_tests():
         return
     
     # Test 3: User Registration
-    username, password = test_register_user()
+    username, password, test_email = test_register_user()
     if not username:
         print("❌ User registration failed!")
         return
     
+    print(f"📧 Test email: {test_email}")
+    
     # Test 4: Login
-    token = test_login(username, password)
+    token = test_login(username, password, test_email)
     if not token:
         print("❌ Login failed!")
         return
@@ -196,7 +204,7 @@ def run_all_tests():
     # Test 6: Complete Booking (if rooms available)
     booking_ref = None
     if room_data:
-        booking_ref = test_complete_booking(token, room_data, search_criteria)
+        booking_ref = test_complete_booking(token, room_data, search_criteria, test_email)
         if booking_ref:
             # Test 7: Booking Details
             test_booking_details(token, booking_ref)
@@ -216,7 +224,7 @@ def run_all_tests():
     print("✅ Booking Details: PASSED" if booking_ref else "⚠️  Booking Details: Skipped")
     
     if booking_ref:
-        print(f"\n📧 CHECK YOUR EMAIL ({TEST_EMAIL}) FOR BOOKING CONFIRMATION!")
+        print(f"\n📧 CHECK YOUR EMAIL ({test_email}) FOR BOOKING CONFIRMATION!")
         print(f"🎫 Booking Reference: {booking_ref}")
     
     print("\n🎉 All available tests completed!")
