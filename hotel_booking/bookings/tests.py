@@ -219,7 +219,8 @@ class BookingAPITest(APITestCase):
             name='Breakfast',
             description='Continental breakfast',
             price=Decimal('25.00'),
-            category='breakfast'
+            category='breakfast',
+            max_quantity=5  # Allow multiple breakfast bookings
         )
         
         # Set up API client
@@ -235,18 +236,18 @@ class BookingAPITest(APITestCase):
     
     def test_room_search(self):
         """Test room availability search"""
-        url = reverse('bookings:search_rooms')
-        data = {
+        url = reverse('bookings:search_rooms_only')
+        params = {
             'check_in': (date.today() + timedelta(days=1)).isoformat(),
             'check_out': (date.today() + timedelta(days=3)).isoformat(),
             'guests': 2
         }
         
-        response = self.client.post(url, data, format='json')
+        response = self.client.get(url, params)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn('results', response.data)
-        self.assertIn('search_params', response.data)
+        self.assertIn('available_rooms', response.data)
+        self.assertIn('search_criteria', response.data)
     
     def test_create_booking(self):
         """Test booking creation"""

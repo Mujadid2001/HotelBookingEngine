@@ -781,7 +781,7 @@ class BookingSearchAPIView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        queryset = Booking.objects.filter(guest=self.request.user)
+        queryset = Booking.objects.filter(user=self.request.user)
         
         # Filter by status
         status_filter = self.request.query_params.get('status')
@@ -971,7 +971,7 @@ class BookingCancelAPIView(generics.GenericAPIView):
         try:
             booking = Booking.objects.get(
                 booking_reference=booking_reference,
-                guest=request.user
+                user=request.user
             )
             
             if booking.status == 'cancelled':
@@ -989,8 +989,9 @@ class BookingCancelAPIView(generics.GenericAPIView):
             # Create history record
             BookingHistory.objects.create(
                 booking=booking,
-                status='cancelled',
-                notes=f'Cancelled by guest: {booking.cancellation_reason}'
+                action='cancelled',
+                description=f'Cancelled by guest: {booking.cancellation_reason}',
+                performed_by=request.user
             )
             
             return Response({
@@ -1011,7 +1012,7 @@ class BookingConfirmAPIView(generics.GenericAPIView):
         try:
             booking = Booking.objects.get(
                 booking_reference=booking_reference,
-                guest=request.user
+                user=request.user
             )
             
             if booking.status == 'confirmed':
@@ -1040,7 +1041,7 @@ class BookingModifyAPIView(generics.GenericAPIView):
         try:
             booking = Booking.objects.get(
                 booking_reference=booking_reference,
-                guest=request.user
+                user=request.user
             )
             
             # Create modification request (in real implementation)
@@ -1065,7 +1066,7 @@ class BookingTimelineAPIView(generics.GenericAPIView):
         try:
             booking = Booking.objects.get(
                 booking_reference=booking_reference,
-                guest=request.user
+                user=request.user
             )
             
             # Get booking history
@@ -1098,7 +1099,7 @@ class BookingInvoiceAPIView(generics.GenericAPIView):
         try:
             booking = Booking.objects.get(
                 booking_reference=booking_reference,
-                guest=request.user
+                user=request.user
             )
             
             invoice_data = {

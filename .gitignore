@@ -1,23 +1,74 @@
-# Hotel Booking Engine - .gitignore
+# Hotel Booking Engine - Production .gitignore
+
+# Security and deployment files
+.env
+.env.local
+.env.production
+.env.staging
+*.key
+*.crt
+*.pem
+
+# Database files
+*.db
+*.sqlite3
+db.sqlite3
+db.sqlite3-journal
+
+# Python cache and builds
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
 
 # Django
 *.log
 *.pot
-*.pyc
-__pycache__/
 local_settings.py
-db.sqlite3
-db.sqlite3-journal
+staticfiles/
+media/
+logs/
 migrations/__pycache__/
 
-# IDE
+# Development files
+test_api.py
+generate_secret_key.py
+debug_*.py
+setup_*.py
+check_*.py
+
+# IDE and OS files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
 .DS_Store?
 ._*
@@ -26,28 +77,20 @@ migrations/__pycache__/
 ehthumbs.db
 Thumbs.db
 
-# Logs
-logs/
-*.log
-
-# Coverage reports
+# Testing and coverage
 htmlcov/
 .coverage
 .coverage.*
 coverage.xml
+.pytest_cache/
 
-# Development and debug files
-debug_*.py
-# test_*.py  # Comment out to include our complete_api_test.py
-setup_*.py
-check_*.py
-
-#Virtual environment - Include so friend doesn't need to create
-venv/
-env/
-
-
-# Environment variables (sensitive data only)
+# Docker and deployment
+.dockerignore
+ssl/
+backup/
+*.backup
+*.bak
+*.sql
 .env.local
 .env.production
 

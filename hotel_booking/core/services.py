@@ -65,8 +65,14 @@ class RoomAvailabilityService:
                 'room_count': 1
             })
         
-        # Multi-room solutions (if guests > 3, might need multiple rooms)
-        if guests > 3:
+        # Multi-room solutions 
+        # Include multi-room options when:
+        # 1. Large groups (>2 guests) that might prefer separate rooms
+        # 2. When no single room can accommodate all guests
+        # 3. To provide customers with accommodation flexibility
+        single_room_available = single_rooms.exists()
+        
+        if guests > 2 or not single_room_available:
             multi_room_combinations = RoomAvailabilityService._get_multi_room_combinations(
                 available_rooms, guests, check_in, check_out
             )
