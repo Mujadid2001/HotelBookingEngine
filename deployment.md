@@ -154,11 +154,28 @@ podman system migrate
 # Test Podman installation
 podman run hello-world
 
-# Configure Podman registries (optional)
+# Configure Podman registries (IMPORTANT - fixes image pull issues)
 mkdir -p ~/.config/containers
-echo '[registries.search]
-registries = ["docker.io", "quay.io"]' > ~/.config/containers/registries.conf
+cat > ~/.config/containers/registries.conf << EOF
+[registries.search]
+registries = ["docker.io"]
+
+[registries.insecure]
+registries = []
+
+[registries.block]
+registries = []
+
+[[registry]]
+location = "docker.io"
+insecure = false
+blocked = false
+EOF
+
+echo "✅ Podman configured to use Docker Hub registry"
 ```
+
+**Note:** This configuration ensures Podman pulls images from Docker Hub instead of Red Hat's registry, which prevents authentication and "repo not found" errors.
 
 ### SELinux Configuration (AlmaLinux/RHEL Security)
 
@@ -889,7 +906,51 @@ podman-compose -f docker-compose.prod.yml up -d --build
 
 ### 🔧 Common Issues and Solutions
 
-#### 1. Container Won't Start
+#### 1. Registry/Image Pull Errors (Podman)
+**Error:** `Error: initializing source docker://registry.access.redhat.com/postgres:15-alpine: reading manifest 15-alpine in registry.access.redhat.com/postgres: name unknown: Repo not found`
+
+**Solution:**
+```bash
+# Configure Podman to use Docker Hub registry
+mkdir -p ~/.config/containers
+cat > ~/.config/containers/registries.conf << EOF
+[registries.search]
+registries = ["docker.io"]
+
+[registries.insecure]
+registries = []
+
+[registries.block]
+registries = []
+
+[[registry]]
+location = "docker.io"
+insecure = false
+blocked = false
+EOF
+
+# Pre-pull images from Docker Hub
+podman pull docker.io/postgres:15-alpine
+podman pull docker.io/redis:7-alpine
+podman pull docker.io/nginx:alpine
+
+# Restart deployment
+./deploy.sh
+```
+
+**Quick Fix Script:** A `fix-registry.sh` script is included in the project that automates this fix:
+```bash
+# Run the quick fix script
+chmod +x fix-registry.sh
+./fix-registry.sh
+
+# Then run deployment
+./deploy.sh
+```
+
+**Why this happens:** Podman on AlmaLinux/RHEL sometimes defaults to Red Hat's registry instead of Docker Hub, causing authentication and "repo not found" errors.
+
+#### 2. Container Won't Start
 ```bash
 # Check container logs for errors
 podman-compose -f docker-compose.prod.yml logs

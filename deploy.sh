@@ -41,6 +41,31 @@ fi
 # Create logs directory
 mkdir -p logs
 
+# Configure Podman to use Docker Hub registry
+echo "🔧 Configuring Podman registries..."
+mkdir -p ~/.config/containers
+cat > ~/.config/containers/registries.conf << EOF
+[registries.search]
+registries = ["docker.io"]
+
+[registries.insecure]
+registries = []
+
+[registries.block]
+registries = []
+
+[[registry]]
+location = "docker.io"
+insecure = false
+blocked = false
+EOF
+
+# Pre-pull required images from Docker Hub
+echo "📥 Pre-pulling required Docker images..."
+podman pull docker.io/postgres:15-alpine
+podman pull docker.io/redis:7-alpine  
+podman pull docker.io/nginx:alpine
+
 # Build and start containers
 echo "🐳 Building and starting containers with Podman..."
 podman-compose -f docker-compose.prod.yml down --volumes
