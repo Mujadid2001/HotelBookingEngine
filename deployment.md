@@ -296,12 +296,59 @@ openssl rand -base64 50 | tr -d '\n' && echo
 # Copy the output and use it in your .env file
 ```
 
+### 📧 How to Obtain Gmail App Password for Email Configuration
+
+For the `EMAIL_HOST_PASSWORD` in your `.env` file, you'll need to generate a Gmail App Password (not your regular Gmail password). Follow these steps:
+
+#### Step 1: Enable 2-Factor Authentication
+1. Go to your [Google Account settings](https://myaccount.google.com/)
+2. Navigate to **Security** in the left sidebar
+3. Under **Signing in to Google**, click **2-Step Verification**
+4. Follow the setup process to enable 2FA (required for App Passwords)
+
+#### Step 2: Generate App Password
+1. After enabling 2FA, go back to **Security** settings
+2. Under **Signing in to Google**, click **App passwords**
+3. You may need to sign in again for verification
+4. In the **Select app** dropdown, choose **Mail**
+5. In the **Select device** dropdown, choose **Other (Custom name)**
+6. Enter a name like "Hotel Booking API" or "VPS Server"
+7. Click **Generate**
+8. Google will display a 16-character password (example: `abcd efgh ijkl mnop`)
+9. **Copy this password immediately** - you won't be able to see it again
+10. Use this 16-character password as your `EMAIL_HOST_PASSWORD` in the `.env` file
+
+#### Step 3: Configure .env File
+```bash
+# Use the 16-character App Password (remove spaces)
+EMAIL_HOST_PASSWORD=abcdefghijklmnop
+```
+
+#### Alternative Email Providers
+
+**If you don't want to use Gmail:**
+- **Outlook/Hotmail**: Use `smtp.office365.com` port `587`
+- **Yahoo**: Use `smtp.mail.yahoo.com` port `587` 
+- **Custom SMTP**: Contact your email provider for SMTP settings
+
+**For other providers, you may need:**
+- SMTP server address
+- Port number (usually 587 for TLS or 465 for SSL)
+- Username (usually your email address)
+- Password or App-specific password
+
+#### Important Security Notes
+- **Never use your regular Gmail password** - always use App Passwords
+- **Keep your App Password secure** - treat it like a regular password
+- **If compromised**: Delete the App Password from Google Account settings and generate a new one
+- **Multiple apps**: Generate separate App Passwords for different applications
+
 ### Important Configuration Notes
 
 - **SECRET_KEY:** Must be unique, at least 50 characters, and kept secret
 - **ALLOWED_HOSTS:** Include your domain, www subdomain, and VPS IP address
 - **DB_PASSWORD:** Use a strong password with letters, numbers, and symbols
-- **EMAIL_HOST_PASSWORD:** For Gmail, use App Passwords (not your regular password)
+- **EMAIL_HOST_PASSWORD:** For Gmail, use App Passwords (16-character code from Google Account settings)
 - **DEBUG:** Must be False for production
 - **SSL Settings:** Start with False, enable after SSL certificates are configured
 
