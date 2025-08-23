@@ -69,4 +69,4 @@ referencing==0.36.2
 rpds-py==0.26.0
 
 # Production Database Support
-psycopg2-binary==2.9.7  # PostgreSQL
+psycopg2-binary  # PostgreSQL
