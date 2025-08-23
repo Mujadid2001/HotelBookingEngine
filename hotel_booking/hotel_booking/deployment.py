@@ -66,11 +66,15 @@ TEMPLATES = [
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME'),
-        'USER': os.environ.get('DB_USER'),
+        'NAME': os.environ.get('DB_NAME', 'hotel_booking_prod'),
+        'USER': os.environ.get('DB_USER', 'hotel_booking_user'),
         'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'HOST': os.environ.get('DB_HOST', 'db'),
         'PORT': os.environ.get('DB_PORT', '5432'),
+        'CONN_MAX_AGE': 60,
+        'OPTIONS': {
+            'connect_timeout': 10,
+        }
     }
 }
 
@@ -108,13 +112,15 @@ AUTH_USER_MODEL = 'accounts.CustomUser'
 # LOGIN_REDIRECT_URL = 'accounts:profile'
 # LOGOUT_REDIRECT_URL = 'accounts:login'
 
-# Production email
+# Production email configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', f'Hotel Booking <{EMAIL_HOST_USER}>')
+SERVER_EMAIL = os.environ.get('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
 
 MESSAGE_TAGS = {
     messages.DEBUG: 'debug',

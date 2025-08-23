@@ -88,9 +88,6 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
 ]
 
 LANGUAGE_CODE = 'en-us'
@@ -99,6 +96,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # Added for production
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -114,10 +112,10 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='mujadid2001@gmail.com')
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='mujadid2001@gmail.com')
-SERVER_EMAIL = config('DEFAULT_FROM_EMAIL', default='mujadid2001@gmail.com')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='Hotel Booking <noreply@example.com>')
+SERVER_EMAIL = config('SERVER_EMAIL', default='Hotel Booking <noreply@example.com>')
 
 MESSAGE_TAGS = {
     messages.DEBUG: 'debug',
