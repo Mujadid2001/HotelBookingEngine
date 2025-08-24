@@ -12,7 +12,9 @@ import os
 from django.core.asgi import get_asgi_application
 
 
-# DJANGO_SETTINGS_MODULE must be set in the environment for deployment.
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hotel_booking.settings')
+
+# Use DJANGO_SETTINGS_MODULE from environment if set, else default to development settings
+if not os.environ.get('DJANGO_SETTINGS_MODULE'):
+	os.environ['DJANGO_SETTINGS_MODULE'] = 'hotel_booking.settings'
 
 application = get_asgi_application()

@@ -3,9 +3,9 @@
 from .settings import *
 
 # --- Production-specific overrides ---
-DEBUG = False
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
 SECRET_KEY = os.environ.get('SECRET_KEY', 'replace-this-with-a-very-long-unique-secret-key-2025-08-24')
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'yourdomain.com,www.yourdomain.com').split(',')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0').split(',')
 
 # Production database (PostgreSQL recommended)
 DATABASES = {
@@ -37,10 +37,11 @@ SERVER_EMAIL = os.environ.get('SERVER_EMAIL', 'Hotel Booking <noreply@example.co
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-SECURE_SSL_REDIRECT = True
+# Disable SSL redirect for Docker development
+SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'False').lower() in ('true', '1', 'yes')
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False').lower() in ('true', '1', 'yes')
+CSRF_COOKIE_SECURE = os.environ.get('CSRF_COOKIE_SECURE', 'False').lower() in ('true', '1', 'yes')
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 SECURE_BROWSER_XSS_FILTER = True
