@@ -14,6 +14,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends gcc libpq-dev curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Create a non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 # Install Python dependencies
 COPY requirements.txt /app/
 RUN pip install --upgrade pip \
@@ -21,6 +24,13 @@ RUN pip install --upgrade pip \
 
 # Copy project files
 COPY . /app/
+
+# Create necessary directories and set proper ownership
+RUN mkdir -p /app/logs /app/static /app/media && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
 
 
 # Collect static files (optional, can also be done in entrypoint)

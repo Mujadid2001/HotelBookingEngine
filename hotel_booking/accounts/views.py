@@ -16,6 +16,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+from django_ratelimit.decorators import ratelimit
+from django.utils.decorators import method_decorator
 
 # Local imports
 from .models import CustomUser, EmailVerificationToken, PasswordResetToken
@@ -28,6 +30,7 @@ from bookings.models import Booking
 from bookings.serializers import BookingListSerializer
 
 
+@method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
 class RegisterAPIView(generics.CreateAPIView):
     """User registration API endpoint"""
     queryset = CustomUser.objects.all()
@@ -95,8 +98,9 @@ class RegisterAPIView(generics.CreateAPIView):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@ratelimit(key='ip', rate='5/m', method='POST', block=True)
 def login_api_view(request):
-    """Login API endpoint"""
+    """Login API endpoint with rate limiting"""
     serializer = LoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     
@@ -167,10 +171,15 @@ class ProfileAPIView(generics.RetrieveAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
     
+    @method_decorator(ratelimit(key='user', rate='30/m', method='GET', block=True))
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
     def get_object(self):
         return self.request.user
 
 
+@method_decorator(ratelimit(key='user', rate='10/m', method=['PATCH', 'PUT'], block=True), name='dispatch')
 class ProfileUpdateAPIView(generics.UpdateAPIView):
     """User profile update API endpoint"""
     serializer_class = UserUpdateSerializer
@@ -185,6 +194,7 @@ class ProfileUpdateAPIView(generics.UpdateAPIView):
         return response
 
 
+@method_decorator(ratelimit(key='user', rate='5/h', method='POST', block=True), name='post')
 class PasswordChangeAPIView(generics.GenericAPIView):
     """Password change API endpoint"""
     serializer_class = PasswordChangeSerializer

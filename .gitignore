@@ -1,10 +1,7 @@
 # Hotel Booking Engine - Production .gitignore
 
 # Security and deployment files
-.env
-.env.local
-.env.production
-.env.staging
+.env*
 *.key
 *.crt
 *.pem
@@ -91,8 +88,6 @@ backup/
 *.backup
 *.bak
 *.sql
-.env.local
-.env.production
 
 # Static files (will be generated)
 staticfiles/

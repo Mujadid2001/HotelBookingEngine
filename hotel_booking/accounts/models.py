@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.utils import timezone
 from django.core.validators import RegexValidator
 from django.urls import reverse
+from core.validators import validate_image_file
 import uuid
 
 
@@ -82,7 +83,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         upload_to='profile_pictures/', 
         blank=True, 
         null=True,
-        verbose_name='Profile Picture'
+        verbose_name='Profile Picture',
+        validators=[validate_image_file]
     )
     bio = models.TextField(max_length=500, blank=True, verbose_name='Bio')
     
