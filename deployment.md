@@ -23,7 +23,7 @@ This guide provides step-by-step instructions for deploying the Django Hotel Boo
 
 - AlmaLinux 8/9 or RHEL 8/9 VPS with root or sudo access
 - Minimum 2GB RAM, 2 CPU cores, 20GB storage
-- Domain name pointed to your VPS IP address
+- Domain name `api.marhotels.com.sa` pointed to your VPS IP address
 - SSH access to the server
 
 ## Server Setup
@@ -120,7 +120,7 @@ nano .env
 DJANGO_SETTINGS_MODULE=hotel_booking.deployment
 SECRET_KEY="your-super-secret-key-here-make-it-long-and-random"
 DEBUG=False
-ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com,localhost,127.0.0.1
+ALLOWED_HOSTS=api.marhotels.com.sa,www.api.marhotels.com.sa,localhost,127.0.0.1
 
 # Database Configuration
 DB_NAME=hotelMaarDB
@@ -134,8 +134,8 @@ EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_HOST_USER=your-email@gmail.com
 EMAIL_HOST_PASSWORD="your-app-password"
-DEFAULT_FROM_EMAIL="Hotel Booking <noreply@yourdomain.com>"
-SERVER_EMAIL="Hotel Booking <admin@yourdomain.com>"
+DEFAULT_FROM_EMAIL="Mar Hotels API <noreply@marhotels.com.sa>"
+SERVER_EMAIL="Mar Hotels API <admin@marhotels.com.sa>"
 
 # Security Settings
 SECURE_SSL_REDIRECT=True
@@ -251,7 +251,7 @@ upstream hotel_api {
 
 server {
     listen 80;
-    server_name yourdomain.com www.yourdomain.com;
+    server_name api.marhotels.com.sa;
     
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -326,7 +326,7 @@ sudo dnf install -y certbot python3-certbot-nginx
 
 ### 2. Obtain SSL Certificate
 ```bash
-sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+sudo certbot --nginx -d api.marhotels.com.sa
 ```
 
 ### 3. Set Up Auto-Renewal
@@ -397,19 +397,19 @@ sudo systemctl start hotel-api.service
 ### 1. Test API Endpoints
 ```bash
 # Test health endpoint
-curl https://yourdomain.com/api/v1/health/
+curl https://api.marhotels.com.sa/api/v1/health/
 
 # Test main API
-curl https://yourdomain.com/api/v1/
+curl https://api.marhotels.com.sa/api/v1/
 
 # Test documentation
-curl https://yourdomain.com/api/v1/docs/
+curl https://api.marhotels.com.sa/api/v1/docs/
 ```
 
 ### 2. Check SSL Certificate
 ```bash
-curl -I https://yourdomain.com
-openssl s_client -connect yourdomain.com:443 -servername yourdomain.com
+curl -I https://api.marhotels.com.sa
+openssl s_client -connect api.marhotels.com.sa:443 -servername api.marhotels.com.sa
 ```
 
 ### 3. Performance Test
@@ -418,7 +418,7 @@ openssl s_client -connect yourdomain.com:443 -servername yourdomain.com
 sudo dnf install -y httpd-tools
 
 # Test API performance
-ab -n 100 -c 10 https://yourdomain.com/api/v1/health/
+ab -n 100 -c 10 https://api.marhotels.com.sa/api/v1/health/
 ```
 
 ## Monitoring and Maintenance
@@ -471,7 +471,7 @@ chmod +x ~/backup.sh
 ### 3. Set Up Monitoring Commands
 ```bash
 # Check application status
-alias check-api='podman-compose ps && curl -s https://yourdomain.com/api/v1/health/'
+alias check-api='podman-compose ps && curl -s https://api.marhotels.com.sa/api/v1/health/'
 
 # View logs
 alias api-logs='podman-compose logs --tail=50 web'
