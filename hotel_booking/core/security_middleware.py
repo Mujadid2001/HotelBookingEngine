@@ -40,9 +40,17 @@ class RequestSizeMiddleware(MiddlewareMixin):
     def process_request(self, request):
         max_size = getattr(settings, 'DATA_UPLOAD_MAX_MEMORY_SIZE', 10 * 1024 * 1024)
         
-        if request.content_length and request.content_length > max_size:
-            logger.warning(f'Request size {request.content_length} exceeds limit from {request.META.get("REMOTE_ADDR")}')
-            return HttpResponseForbidden('Request too large')
+        # Get content length from META headers
+        content_length = request.META.get('CONTENT_LENGTH')
+        if content_length:
+            try:
+                content_length = int(content_length)
+                if content_length > max_size:
+                    logger.warning(f'Request size {content_length} exceeds limit from {request.META.get("REMOTE_ADDR")}')
+                    return HttpResponseForbidden('Request too large')
+            except (ValueError, TypeError):
+                # Invalid content length, let it pass
+                pass
         
         return None
 
