@@ -76,7 +76,7 @@ class RegisterAPIView(generics.CreateAPIView):
                 )
             
             verification_url = self.request.build_absolute_uri(
-                f'/api/accounts/verify-email/{token.token}/'
+                f'/api/v1/auth/verify-email/{token.token}/'
             )
             
             subject = 'Verify your email address'
@@ -107,7 +107,7 @@ def login_api_view(request):
     user = serializer.validated_data['user']
     
     # Check for account lockout due to failed attempts
-    if user.failed_login_attempts >= 5:
+    if user.failed_login_attempts >= 10:
         return Response({
             'error': 'Account temporarily locked due to too many failed login attempts. Please try again later or reset your password.'
         }, status=status.HTTP_423_LOCKED)
@@ -243,7 +243,7 @@ def password_reset_request(request):
         
         # Send password reset email
         reset_url = request.build_absolute_uri(
-            f'/api/accounts/password-reset-confirm/{token.token}/'
+            f'/api/v1/auth/password/reset/confirm/{token.token}/'
         )
         
         subject = 'Password Reset Request'
@@ -359,14 +359,38 @@ def resend_verification_email(request):
     if user.is_verified:
         return Response({'message': 'Your email is already verified.'}, status=status.HTTP_400_BAD_REQUEST)
     
-    # Create new verification token
-    verification_token = EmailVerificationToken.objects.create(user=user)
-    
-    # Send verification email (implement send_verification_email method)
+    # Use the same logic as RegisterAPIView for sending verification email
     try:
-        send_verification_email(user, verification_token)
+        # Check for existing unexpired tokens
+        existing_tokens = EmailVerificationToken.objects.filter(
+            user=user,
+            used=False,
+            expires_at__gt=timezone.now()
+        )
+        if existing_tokens.exists():
+            token = existing_tokens.first()
+        else:
+            token = EmailVerificationToken.objects.create(
+                user=user,
+                expires_at=timezone.now() + timedelta(hours=24)
+            )
+        verification_url = request.build_absolute_uri(
+            f'/api/v1/auth/verify-email/{token.token}/'
+        )
+        subject = 'Verify your email address'
+        message = f'Please click the following link to verify your email: {verification_url}'
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL or 'noreply@hotel.com',
+            [user.email],
+            fail_silently=False,
+        )
         return Response({'message': 'Verification email sent successfully.'})
     except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to send verification email to {user.email}: {e}")
         return Response({'error': 'Failed to send verification email.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -544,29 +568,6 @@ def mark_all_notifications_read(request):
     # In a real implementation, you'd update all user notifications
     return Response({'message': 'All notifications marked as read.'})
 
-
-def send_verification_email(user, verification_token):
-    """Send verification email to user"""
-    subject = 'Verify your email address'
-    message = f'''
-    Hi {user.first_name or user.username},
-    
-    Please click the link below to verify your email address:
-    http://127.0.0.1:8000/api/v1/auth/verify/{verification_token.token}/
-    
-    This link will expire in 24 hours.
-    
-    Best regards,
-    Hotel Booking Engine Team
-    '''
-    
-    send_mail(
-        subject,
-        message,
-        settings.DEFAULT_FROM_EMAIL,
-        [user.email],
-        fail_silently=False,
-    )
 
 
 def get_client_ip(request):
