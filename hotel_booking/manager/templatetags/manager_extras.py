@@ -13,3 +13,14 @@ def attr(obj, attr_name):
         return val() if callable(val) else val
     except Exception:
         return val
+
+@register.filter
+def status_color(status):
+    """Return a bootstrap color class based on booking status."""
+    if status == 'CONFIRMED':
+        return 'success'
+    if status == 'PENDING':
+        return 'warning'
+    if status == 'CANCELLED':
+        return 'danger'
+    return 'secondary'
