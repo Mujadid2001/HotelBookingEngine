@@ -23,6 +23,7 @@ services:
       - media_volume:/app/media
       - logs_volume:/app/logs
       - ./entrypoint.sh:/app/entrypoint.sh
+      - .:/app:cached  
     env_file:
       - .env
     environment:
