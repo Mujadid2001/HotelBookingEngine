@@ -15,7 +15,10 @@ urlpatterns = [
 
     # Bookings
     path('bookings/', views_cbv.BookingListView.as_view(), name='bookings'),
+    path('bookings/add/', views_cbv.BookingCreateView.as_view(), name='booking_add'),
     path('bookings/<uuid:pk>/', views_cbv.BookingDetailView.as_view(), name='booking_detail'),
+    path('bookings/<uuid:pk>/edit/', views_cbv.BookingUpdateView.as_view(), name='booking_edit'),
+    path('bookings/<uuid:pk>/delete/', views_cbv.BookingDeleteView.as_view(), name='booking_delete'),
     # Room types
     path('roomtypes/', views_cbv.RoomTypeListView.as_view(), name='roomtypes'),
     path('roomtypes/add/', views_cbv.RoomTypeCreateView.as_view(), name='roomtype_add'),

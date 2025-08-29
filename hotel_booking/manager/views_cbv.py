@@ -1,44 +1,24 @@
+import csv
+from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.mixins import (LoginRequiredMixin,
+                                        PermissionRequiredMixin,
+                                        UserPassesTestMixin)
+from django.http import HttpResponse
+from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView, View
-from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
-from django.contrib import messages
-from django.shortcuts import render, redirect
-from django.contrib.auth import logout, authenticate, login
 from django.utils import timezone
-from django.http import HttpResponse
-import csv
+from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
+                                  UpdateView, View)
 
-from core.models import Hotel, Room, RoomType, Extra, SeasonalPricing, RoomAmenity, RoomImage, RoomTypeAmenity
 from bookings.models import Booking, BookingExtra, BookingGuest, BookingHistory
-from .forms import (
-    HotelForm, RoomForm, RoomTypeForm, ExtraForm, SeasonalPricingForm, BookingForm,
-    BookingExtraForm, BookingGuestForm, BookingHistoryForm, RoomAmenityForm, RoomImageForm, RoomTypeAmenityForm
-)
-from core.models import Hotel, Room, RoomType, Extra, SeasonalPricing
-from bookings.models import Booking
-from .forms import HotelForm, RoomForm, RoomTypeForm, ExtraForm, SeasonalPricingForm, BookingForm
-from .forms import BookingExtraForm, BookingGuestForm, BookingHistoryForm, RoomAmenityForm, RoomImageForm, RoomTypeAmenityForm
-from bookings.models import BookingExtra, BookingGuest, BookingHistory
-from core.models import RoomAmenity, RoomImage, RoomTypeAmenity
-from django.http import HttpResponse
-import csv
+from core.models import (Extra, Hotel, Room, RoomAmenity, RoomImage, RoomType,
+                       RoomTypeAmenity, SeasonalPricing)
 
-
-from django.contrib.auth import logout
-from django.shortcuts import redirect
-
-
-
-from django.shortcuts import render, redirect
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.contrib.auth import logout, authenticate, login
-from django.contrib import messages
-from django.views import View
-from django.utils.decorators import method_decorator
-from django.utils import timezone
-
-from bookings.models import Booking
-from core.models import Hotel, Room, Extra
+from .forms import (BookingExtraForm, BookingForm, BookingGuestForm,
+                    BookingHistoryForm, ExtraForm, HotelForm, RoomAmenityForm,
+                    RoomForm, RoomImageForm, RoomTypeAmenityForm,
+                    RoomTypeForm, SeasonalPricingForm)
 
 
 class ManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
@@ -57,7 +37,12 @@ class ManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     
     def handle_no_permission(self):
         logout(self.request)
-        return redirect('manager:login')
+        from django.contrib.auth.views import redirect_to_login
+        return redirect_to_login(
+            self.request.get_full_path(),
+            reverse_lazy('manager:login'),
+            'next'
+        )
 
 
 class ManagerLoginView(View):
@@ -177,6 +162,11 @@ class DashboardView(ManagerRequiredMixin, View):
                 'view': user.has_perm('bookings.view_bookinghistory'),
                 'change': user.has_perm('bookings.change_bookinghistory'),
             },
+            'booking': {
+                'add': user.has_perm('bookings.add_booking'),
+                'view': user.has_perm('bookings.view_booking'),
+                'change': user.has_perm('bookings.change_booking'),
+            },
         }
 
         context = {
@@ -197,6 +187,7 @@ class DashboardView(ManagerRequiredMixin, View):
             'bookingguests_count': bookingguests_count,
             'bookinghistories_count': bookinghistories_count,
             'perms': perms,
+            'request': request,
         }
         return render(request, 'manager/dashboard.html', context)
     
@@ -307,6 +298,11 @@ class BaseUpdateView(ModelContextMixin, LoginRequiredMixin, PermissionRequiredMi
     def form_valid(self, form):
         messages.success(self.request, 'Updated successfully.')
         return super().form_valid(form)
+
+    def get_success_url(self):
+        # Default success URL to the list view of the model
+        model_name = self.model._meta.model_name
+        return reverse_lazy(f'manager:{model_name}s')
 
 
 class BaseDeleteView(ModelContextMixin, LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
@@ -677,3 +673,24 @@ class BookingDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
     template_name = 'manager/detail.html'
     context_object_name = 'object'
     permission_required = 'bookings.view_booking'
+
+
+class BookingCreateView(BaseCreateView):
+    model = Booking
+    form_class = BookingForm
+    template_name = 'manager/form.html'
+    permission_required = 'bookings.add_booking'
+
+
+class BookingUpdateView(BaseUpdateView):
+    model = Booking
+    form_class = BookingForm
+    template_name = 'manager/form.html'
+    permission_required = 'bookings.change_booking'
+
+
+class BookingDeleteView(BaseDeleteView):
+    model = Booking
+    template_name = 'manager/confirm_delete.html'
+    success_url = reverse_lazy('manager:bookings')
+    permission_required = 'bookings.delete_booking'
