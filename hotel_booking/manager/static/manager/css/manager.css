@@ -88,10 +88,11 @@ body {
   font-size: 1.1rem;
 }
 
-.list-group-item:hover, 
+.list-group-item:hover,
 .list-group-item.active {
   background: var(--amber-800);
   color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .sidebar-heading-divider {
@@ -221,6 +222,12 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .btn-primary {
@@ -264,12 +271,13 @@ body {
 }
 
 .btn-secondary {
-  background: #6c757d;
-  color: white;
+  background: var(--light);
+  color: var(--dark);
+  border: 1px solid var(--border);
 }
 
 .btn-secondary:hover {
-  background: #5c636a;
+  background: #e2e8f0;
 }
 
 .btn-outline-secondary {
@@ -353,45 +361,69 @@ body {
 /* Forms */
 .form-floating {
   position: relative;
-  margin-bottom: 1rem;
 }
 
 .form-control {
-  width: 100%;
-  padding: 1rem 0.75rem;
+  background-color: var(--light);
   border: 1px solid var(--border);
   border-radius: 0.5rem;
-  font-family: inherit;
+  padding: 1rem 0.75rem;
+  width: 100%;
   font-size: 1rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  height: auto;
-  min-height: 56px;
+  transition: all 0.2s ease;
+  min-height: 58px;
 }
 
 .form-control:focus {
   outline: none;
   border-color: var(--amber-500);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+  background-color: var(--white);
 }
 
-.form-label {
+.form-floating > .form-control {
+  padding-top: 1.625rem;
+  padding-bottom: 0.625rem;
+}
+
+.form-floating > label {
   position: absolute;
   top: 0;
   left: 0;
+  height: 100%;
   padding: 1rem 0.75rem;
   pointer-events: none;
-  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  transform-origin: 0 0;
+  transition: opacity .1s ease-in-out,transform .1s ease-in-out;
   color: var(--muted);
-  font-weight: 400;
 }
 
-.form-control:focus ~ .form-label,
-.form-control:not(:placeholder-shown) ~ .form-label {
-  transform: scale(0.85) translateY(-0.75rem) translateX(0.15rem);
-  background: white;
-  padding: 0 0.5rem;
+.form-floating > .form-control:focus ~ label,
+.form-floating > .form-control:not(:placeholder-shown) ~ label {
+  opacity: .65;
+  transform: scale(.85) translateY(-.5rem) translateX(.15rem);
   color: var(--amber-600);
   font-weight: 500;
+}
+
+.form-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-left: 0;
+}
+
+.form-check-input {
+  width: 1.25em;
+  height: 1.25em;
+  margin-left: 0;
+  border-color: var(--border);
+}
+
+.form-check-input:checked {
+  background-color: var(--amber-600);
+  border-color: var(--amber-600);
 }
 
 /* Login page styles - Clean amber design */
