@@ -159,7 +159,15 @@ class BookingForm(BaseForm):
         'special_requests': 'Any special requests or notes',
         'guests': 'e.g., 2',
     }
-    
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filter user field to exclude managers and admins
+        if 'user' in self.fields:
+            self.fields['user'].queryset = self.fields['user'].queryset.exclude(
+                user_type__in=['staff', 'admin']
+            ).exclude(is_superuser=True)
+
     class Meta:
         model = Booking
         fields = [
