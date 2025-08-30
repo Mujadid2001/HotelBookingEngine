@@ -112,4 +112,4 @@ media/uploads/
 # Ignore Django migration files
 **/migrations/
 **/migrations/*.py
-!**/migrations/__init__.py
+**/migrations/__init__.py
