@@ -118,59 +118,6 @@
             {% endfor %}
           </div>
 
-          {# Image Formset for Rooms #}
-          {% if image_formset %}
-            <div class="mt-4">
-              <h5 class="mb-3">Room Images</h5>
-              <div class="row g-3">
-                {{ image_formset.management_form }}
-                {% for image_form in image_formset %}
-                  <div class="col-12 col-md-6 col-lg-4">
-                    <div class="card">
-                      <div class="card-body">
-                        {% for field in image_form %}
-                          {% if field.name == 'image' %}
-                            <div class="mb-3">
-                              <label class="form-label">{{ field.label }}</label>
-                              {{ field|add_class:'form-control' }}
-                              {% if field.errors %}
-                                <div class="invalid-feedback d-block">{{ field.errors }}</div>
-                              {% endif %}
-                            </div>
-                          {% elif field.name == 'image_alt_text' %}
-                            <div class="mb-3">
-                              <label class="form-label">{{ field.label }}</label>
-                              {{ field|add_class:'form-control' }}
-                              {% if field.errors %}
-                                <div class="invalid-feedback d-block">{{ field.errors }}</div>
-                              {% endif %}
-                            </div>
-                          {% elif field.name == 'caption' %}
-                            <div class="mb-3">
-                              <label class="form-label">{{ field.label }}</label>
-                              {{ field|add_class:'form-control' }}
-                              {% if field.errors %}
-                                <div class="invalid-feedback d-block">{{ field.errors }}</div>
-                              {% endif %}
-                            </div>
-                          {% elif field.name == 'DELETE' %}
-                            <div class="form-check mb-3">
-                              {{ field }}
-                              <label class="form-check-label" for="{{ field.id_for_label }}">
-                                Delete this image
-                              </label>
-                            </div>
-                          {% else %}
-                            {{ field }}
-                          {% endif %}
-                        {% endfor %}
-                      </div>
-                    </div>
-                  </div>
-                {% endfor %}
-              </div>
-            </div>
-          {% endif %}
 
           <div class="mt-4 pt-3 border-top d-flex justify-content-end gap-2">
             <a class="btn btn-secondary" href="{{ request.META.HTTP_REFERER|default:'/' }}">Cancel</a>

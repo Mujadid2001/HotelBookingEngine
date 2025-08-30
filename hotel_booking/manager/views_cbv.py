@@ -365,18 +365,6 @@ class RoomListView(BulkActionMixin, BaseListView):
     permission_required = 'core.view_room'
 
 
-from django.forms import inlineformset_factory
-from django.shortcuts import redirect, render
-from django.urls import reverse_lazy
-
-RoomImageFormSet = inlineformset_factory(
-    Room,
-    RoomImage,
-    form=RoomImageForm,
-    extra=3,
-    can_delete=True
-)
-
 class RoomCreateView(BaseCreateView):
     model = Room
     form_class = RoomForm
@@ -384,28 +372,6 @@ class RoomCreateView(BaseCreateView):
     success_url = reverse_lazy('manager:rooms')
     permission_required = 'core.add_room'
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        if self.request.POST:
-            context['image_formset'] = RoomImageFormSet(self.request.POST, self.request.FILES)
-        else:
-            context['image_formset'] = RoomImageFormSet()
-        return context
-
-    def form_valid(self, form):
-        context = self.get_context_data()
-        image_formset = context['image_formset']
-        if form.is_valid() and image_formset.is_valid():
-            self.object = form.save()
-            image_formset.instance = self.object
-            image_formset.save()
-            # Update room_images JSONField with URLs of uploaded images
-            image_urls = [img.image.url for img in self.object.images.all()]
-            self.object.room_images = image_urls
-            self.object.save()
-            return redirect(self.get_success_url())
-        else:
-            return self.render_to_response(self.get_context_data(form=form))
 
 class RoomUpdateView(BaseUpdateView):
     model = Room
@@ -413,29 +379,6 @@ class RoomUpdateView(BaseUpdateView):
     template_name = 'manager/form.html'
     success_url = reverse_lazy('manager:rooms')
     permission_required = 'core.change_room'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        if self.request.POST:
-            context['image_formset'] = RoomImageFormSet(self.request.POST, self.request.FILES, instance=self.object)
-        else:
-            context['image_formset'] = RoomImageFormSet(instance=self.object)
-        return context
-
-    def form_valid(self, form):
-        context = self.get_context_data()
-        image_formset = context['image_formset']
-        if form.is_valid() and image_formset.is_valid():
-            self.object = form.save()
-            image_formset.instance = self.object
-            image_formset.save()
-            # Update room_images JSONField with URLs of uploaded images
-            image_urls = [img.image.url for img in self.object.images.all()]
-            self.object.room_images = image_urls
-            self.object.save()
-            return redirect(self.get_success_url())
-        else:
-            return self.render_to_response(self.get_context_data(form=form))
 
 
 class RoomDeleteView(BaseDeleteView):
