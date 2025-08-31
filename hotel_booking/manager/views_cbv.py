@@ -364,6 +364,14 @@ class HotelListView(BulkActionMixin, BaseListView):
     context_object_name = 'objects'
     permission_required = 'core.view_hotel'
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        user = self.request.user
+        if user.user_type == 'staff':
+            ctx['can_add'] = False
+            ctx['can_delete'] = False
+        return ctx
+
 
 
 class RoomTypeListView(BulkActionMixin, BaseListView):
@@ -691,6 +699,12 @@ class HotelCreateView(BaseCreateView):
     success_url = reverse_lazy('manager:hotels')
     permission_required = 'core.add_hotel'
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.user_type == 'staff':
+            messages.error(request, 'You do not have permission to add hotels.')
+            return redirect('manager:hotels')
+        return super().dispatch(request, *args, **kwargs)
+
 
 class HotelUpdateView(BaseUpdateView):
     model = Hotel
@@ -705,6 +719,12 @@ class HotelDeleteView(BaseDeleteView):
     template_name = 'manager/confirm_delete.html'
     success_url = reverse_lazy('manager:hotels')
     permission_required = 'core.delete_hotel'
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.user_type == 'staff':
+            messages.error(request, 'You do not have permission to delete hotels.')
+            return redirect('manager:hotels')
+        return super().dispatch(request, *args, **kwargs)
 
 
 # Bookings (basic list + detail)
