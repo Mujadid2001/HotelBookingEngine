@@ -111,7 +111,14 @@ def login_api_view(request):
         return Response({
             'error': 'Account temporarily locked due to too many failed login attempts. Please try again later or reset your password.'
         }, status=status.HTTP_423_LOCKED)
-    
+
+    # Check if email is verified
+    if not user.is_verified:
+        return Response({
+            'error': 'Please verify your email address before logging in. Check your email for the verification link.',
+            'verification_required': True
+        }, status=status.HTTP_403_FORBIDDEN)
+
     # Update last login IP and reset failed attempts
     user.last_login_ip = get_client_ip(request)
     user.failed_login_attempts = 0
