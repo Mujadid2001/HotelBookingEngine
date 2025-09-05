@@ -54,6 +54,7 @@ urlpatterns = [
     # Booking histories
     path('booking-histories/', views_cbv.BookingHistoryListView.as_view(), name='bookinghistories'),
     path('booking-histories/add/', views_cbv.BookingHistoryCreateView.as_view(), name='bookinghistory_add'),
+    path('booking-histories/<uuid:pk>/edit/', views_cbv.BookingHistoryUpdateView.as_view(), name='bookinghistory_edit'),
     path('booking-histories/<uuid:pk>/delete/', views_cbv.BookingHistoryDeleteView.as_view(), name='bookinghistory_delete'),
     path('booking-histories/bulk-delete/', views_cbv.BookingHistoryListView.as_view(), name='bookinghistory_bulk_delete'),
 
@@ -84,6 +85,35 @@ urlpatterns = [
     path('seasonal-pricing/<uuid:pk>/edit/', views_cbv.SeasonalPricingUpdateView.as_view(), name='seasonalpricing_edit'),
     path('seasonal-pricing/<uuid:pk>/delete/', views_cbv.SeasonalPricingDeleteView.as_view(), name='seasonalpricing_delete'),
     path('seasonal-pricing/bulk-delete/', views_cbv.SeasonalPricingListView.as_view(), name='seasonalpricing_bulk_delete'),
+
+    # Offers Management
+    path('offers/', views_cbv.OfferListView.as_view(), name='offers'),
+    path('offers/add/', views_cbv.OfferCreateView.as_view(), name='offer_add'),
+    path('offers/<uuid:pk>/', views_cbv.OfferDetailView.as_view(), name='offer_detail'),
+    path('offers/<uuid:pk>/edit/', views_cbv.OfferUpdateView.as_view(), name='offer_edit'),
+    path('offers/<uuid:pk>/delete/', views_cbv.OfferDeleteView.as_view(), name='offer_delete'),
+    path('offers/bulk-delete/', views_cbv.OfferListView.as_view(), name='offer_bulk_delete'),
+
+    # Offer Categories
+    path('offer-categories/', views_cbv.OfferCategoryListView.as_view(), name='offer_categories'),
+    path('offer-categories/add/', views_cbv.OfferCategoryCreateView.as_view(), name='offer_category_add'),
+    path('offer-categories/<uuid:pk>/edit/', views_cbv.OfferCategoryUpdateView.as_view(), name='offer_category_edit'),
+    path('offer-categories/<uuid:pk>/delete/', views_cbv.OfferCategoryDeleteView.as_view(), name='offer_category_delete'),
+    path('offer-categories/bulk-delete/', views_cbv.OfferCategoryListView.as_view(), name='offer_category_bulk_delete'),
+
+    # Offer Highlights
+    path('offers/<uuid:offer_id>/highlights/', views_cbv.OfferHighlightListView.as_view(), name='offer_highlights'),
+    path('offers/<uuid:offer_id>/highlights/add/', views_cbv.OfferHighlightCreateView.as_view(), name='offer_highlight_add'),
+    path('offer-highlights/<uuid:pk>/edit/', views_cbv.OfferHighlightUpdateView.as_view(), name='offer_highlight_edit'),
+    path('offer-highlights/<uuid:pk>/delete/', views_cbv.OfferHighlightDeleteView.as_view(), name='offer_highlight_delete'),
+    path('offer-highlights/', views_cbv.OfferHighlightListView.as_view(), name='offer_highlights_all'),
+
+    # Offer Images
+    path('offers/<uuid:offer_id>/images/', views_cbv.OfferImageListView.as_view(), name='offer_images'),
+    path('offers/<uuid:offer_id>/images/add/', views_cbv.OfferImageCreateView.as_view(), name='offer_image_add'),
+    path('offer-images/<uuid:pk>/edit/', views_cbv.OfferImageUpdateView.as_view(), name='offer_image_edit'),
+    path('offer-images/<uuid:pk>/delete/', views_cbv.OfferImageDeleteView.as_view(), name='offer_image_delete'),
+    path('offer-images/', views_cbv.OfferImageListView.as_view(), name='offer_images_all'),
 
     # Global search
     path('search/', views_cbv.GlobalSearchView.as_view(), name='global_search'),

@@ -17,11 +17,13 @@ from django.utils.decorators import method_decorator
 from bookings.models import Booking, BookingExtra, BookingGuest, BookingHistory
 from core.models import (Extra, Hotel, Room, RoomAmenity, RoomImage, RoomType,
                        RoomTypeAmenity, SeasonalPricing)
+from offers.models import Offer, OfferCategory, OfferHighlight, OfferImage
 
 from .forms import (BookingExtraForm, BookingForm, BookingGuestForm,
                     BookingHistoryForm, ExtraForm, HotelForm, RoomAmenityForm,
                     RoomForm, RoomImageForm, RoomTypeAmenityForm,
-                    RoomTypeForm, SeasonalPricingForm)
+                    RoomTypeForm, SeasonalPricingForm, OfferForm, OfferCategoryForm,
+                    OfferHighlightForm, OfferImageForm)
 
 
 class ManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
@@ -139,6 +141,12 @@ class DashboardView(ManagerRequiredMixin, View):
         roomtypeamenities_count = RoomTypeAmenity.objects.count()
         seasonalpricing_count = SeasonalPricing.objects.count()
 
+        # Offers related
+        offers_count = Offer.objects.count()
+        active_offers_count = Offer.objects.filter(is_active=True).count()
+        featured_offers_count = Offer.objects.filter(is_featured=True).count()
+        offer_categories_count = OfferCategory.objects.count()
+
         # Bookings related
         bookingextras_count = BookingExtra.objects.count()
         bookingguests_count = BookingGuest.objects.count()
@@ -206,6 +214,18 @@ class DashboardView(ManagerRequiredMixin, View):
                 'view': user.has_perm('bookings.view_booking'),
                 'change': user.has_perm('bookings.change_booking'),
             },
+            'offer': {
+                'add': user.has_perm('offers.add_offer'),
+                'view': user.has_perm('offers.view_offer'),
+                'change': user.has_perm('offers.change_offer'),
+                'delete': user.has_perm('offers.delete_offer'),
+            },
+            'offercategory': {
+                'add': user.has_perm('offers.add_offercategory'),
+                'view': user.has_perm('offers.view_offercategory'),
+                'change': user.has_perm('offers.change_offercategory'),
+                'delete': user.has_perm('offers.delete_offercategory'),
+            },
         }
 
         context = {
@@ -222,6 +242,10 @@ class DashboardView(ManagerRequiredMixin, View):
             'roomimages_count': roomimages_count,
             'roomtypeamenities_count': roomtypeamenities_count,
             'seasonalpricing_count': seasonalpricing_count,
+            'offers_count': offers_count,
+            'active_offers_count': active_offers_count,
+            'featured_offers_count': featured_offers_count,
+            'offer_categories_count': offer_categories_count,
             'bookingextras_count': bookingextras_count,
             'bookingguests_count': bookingguests_count,
             'bookinghistories_count': bookinghistories_count,
@@ -560,6 +584,14 @@ class BookingHistoryCreateView(BaseCreateView):
     permission_required = 'bookings.add_bookinghistory'
 
 
+class BookingHistoryUpdateView(BaseUpdateView):
+    model = BookingHistory
+    form_class = BookingHistoryForm
+    template_name = 'manager/form.html'
+    success_url = reverse_lazy('manager:bookinghistories')
+    permission_required = 'bookings.change_bookinghistory'
+
+
 class BookingHistoryDeleteView(BaseDeleteView):
     model = BookingHistory
     template_name = 'manager/confirm_delete.html'
@@ -858,6 +890,23 @@ class GlobalSearchView(ManagerRequiredMixin, View):
                 }
                 total_results += extras.count()
         
+        # Search Offers
+        if request.user.has_perm('offers.view_offer'):
+            offers = Offer.objects.filter(
+                Q(title__icontains=query) |
+                Q(description__icontains=query) |
+                Q(promo_code__icontains=query) |
+                Q(hotel__name__icontains=query)
+            )[:10]
+            if offers.exists():
+                results['offers'] = {
+                    'objects': offers,
+                    'count': offers.count(),
+                    'verbose_name': Offer._meta.verbose_name_plural,
+                    'url_name': 'manager:offers'
+                }
+                total_results += offers.count()
+        
         context = {
             'query': query,
             'results': results,
@@ -865,3 +914,235 @@ class GlobalSearchView(ManagerRequiredMixin, View):
         }
         
         return render(request, 'manager/search_results.html', context)
+
+
+# Offer Management Views
+class OfferListView(BulkActionMixin, BaseListView):
+    """List all offers with filtering and search"""
+    model = Offer
+    template_name = 'manager/list.html'
+    context_object_name = 'objects'
+    permission_required = 'offers.view_offer'
+    
+    def get_queryset(self):
+        qs = super().get_queryset()
+        
+        # Additional filters for offers
+        hotel_id = self.request.GET.get('hotel')
+        if hotel_id:
+            qs = qs.filter(hotel_id=hotel_id)
+        
+        category_id = self.request.GET.get('category')
+        if category_id:
+            qs = qs.filter(category_id=category_id)
+        
+        is_active = self.request.GET.get('is_active')
+        if is_active is not None:
+            qs = qs.filter(is_active=is_active.lower() == 'true')
+        
+        return qs.select_related('hotel', 'category').order_by('-created_at')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['hotels'] = Hotel.objects.filter(is_active=True)
+        context['categories'] = OfferCategory.objects.filter(is_active=True)
+        return context
+
+
+class OfferCreateView(BaseCreateView):
+    """Create a new offer"""
+    model = Offer
+    form_class = OfferForm
+    template_name = 'manager/form.html'
+    success_url = reverse_lazy('manager:offers')
+    permission_required = 'offers.add_offer'
+
+
+class OfferUpdateView(BaseUpdateView):
+    """Update an existing offer"""
+    model = Offer
+    form_class = OfferForm
+    template_name = 'manager/form.html'
+    success_url = reverse_lazy('manager:offers')
+    permission_required = 'offers.change_offer'
+
+
+class OfferDeleteView(BaseDeleteView):
+    """Delete an offer"""
+    model = Offer
+    template_name = 'manager/confirm_delete.html'
+    success_url = reverse_lazy('manager:offers')
+    permission_required = 'offers.delete_offer'
+
+
+class OfferDetailView(ModelContextMixin, ManagerRequiredMixin, PermissionRequiredMixin, DetailView):
+    """View offer details"""
+    model = Offer
+    template_name = 'manager/detail.html'
+    context_object_name = 'object'
+    permission_required = 'offers.view_offer'
+
+
+# Offer Categories
+class OfferCategoryListView(BulkActionMixin, BaseListView):
+    """List all offer categories"""
+    model = OfferCategory
+    template_name = 'manager/list.html'
+    context_object_name = 'objects'
+    permission_required = 'offers.view_offercategory'
+
+
+class OfferCategoryCreateView(BaseCreateView):
+    """Create a new offer category"""
+    model = OfferCategory
+    form_class = OfferCategoryForm
+    template_name = 'manager/form.html'
+    success_url = reverse_lazy('manager:offer_categories')
+    permission_required = 'offers.add_offercategory'
+
+
+class OfferCategoryUpdateView(BaseUpdateView):
+    """Update an existing offer category"""
+    model = OfferCategory
+    form_class = OfferCategoryForm
+    template_name = 'manager/form.html'
+    success_url = reverse_lazy('manager:offer_categories')
+    permission_required = 'offers.change_offercategory'
+
+
+class OfferCategoryDeleteView(BaseDeleteView):
+    """Delete an offer category"""
+    model = OfferCategory
+    template_name = 'manager/confirm_delete.html'
+    success_url = reverse_lazy('manager:offer_categories')
+    permission_required = 'offers.delete_offercategory'
+
+
+# Offer Highlights
+class OfferHighlightListView(BulkActionMixin, BaseListView):
+    """List offer highlights for a specific offer"""
+    model = OfferHighlight
+    template_name = 'manager/list.html'
+    context_object_name = 'objects'
+    permission_required = 'offers.view_offerhighlight'
+    
+    def get_queryset(self):
+        offer_id = self.kwargs.get('offer_id')
+        if offer_id:
+            return OfferHighlight.objects.filter(offer_id=offer_id).order_by('order')
+        return OfferHighlight.objects.all().order_by('offer__title', 'order')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        offer_id = self.kwargs.get('offer_id')
+        if offer_id:
+            context['offer'] = Offer.objects.get(id=offer_id)
+        return context
+
+
+class OfferHighlightCreateView(BaseCreateView):
+    """Create a new offer highlight"""
+    model = OfferHighlight
+    form_class = OfferHighlightForm
+    template_name = 'manager/form.html'
+    permission_required = 'offers.add_offerhighlight'
+    
+    def get_success_url(self):
+        offer_id = self.kwargs.get('offer_id')
+        if offer_id:
+            return reverse_lazy('manager:offer_highlights', kwargs={'offer_id': offer_id})
+        return reverse_lazy('manager:offer_highlights_all')
+    
+    def form_valid(self, form):
+        offer_id = self.kwargs.get('offer_id')
+        if offer_id:
+            form.instance.offer_id = offer_id
+        return super().form_valid(form)
+
+
+class OfferHighlightUpdateView(BaseUpdateView):
+    """Update an existing offer highlight"""
+    model = OfferHighlight
+    form_class = OfferHighlightForm
+    template_name = 'manager/form.html'
+    permission_required = 'offers.change_offerhighlight'
+    
+    def get_success_url(self):
+        highlight = self.get_object()
+        return reverse_lazy('manager:offer_highlights', kwargs={'offer_id': highlight.offer.id})
+
+
+class OfferHighlightDeleteView(BaseDeleteView):
+    """Delete an offer highlight"""
+    model = OfferHighlight
+    template_name = 'manager/confirm_delete.html'
+    permission_required = 'offers.delete_offerhighlight'
+    
+    def get_success_url(self):
+        highlight = self.get_object()
+        return reverse_lazy('manager:offer_highlights', kwargs={'offer_id': highlight.offer.id})
+
+
+# Offer Images
+class OfferImageListView(BulkActionMixin, BaseListView):
+    """List offer images for a specific offer"""
+    model = OfferImage
+    template_name = 'manager/list.html'
+    context_object_name = 'objects'
+    permission_required = 'offers.view_offerimage'
+    
+    def get_queryset(self):
+        offer_id = self.kwargs.get('offer_id')
+        if offer_id:
+            return OfferImage.objects.filter(offer_id=offer_id).order_by('order')
+        return OfferImage.objects.all().order_by('offer__title', 'order')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        offer_id = self.kwargs.get('offer_id')
+        if offer_id:
+            context['offer'] = Offer.objects.get(id=offer_id)
+        return context
+
+
+class OfferImageCreateView(BaseCreateView):
+    """Create a new offer image"""
+    model = OfferImage
+    form_class = OfferImageForm
+    template_name = 'manager/form.html'
+    permission_required = 'offers.add_offerimage'
+    
+    def get_success_url(self):
+        offer_id = self.kwargs.get('offer_id')
+        if offer_id:
+            return reverse_lazy('manager:offer_images', kwargs={'offer_id': offer_id})
+        return reverse_lazy('manager:offer_images_all')
+    
+    def form_valid(self, form):
+        offer_id = self.kwargs.get('offer_id')
+        if offer_id:
+            form.instance.offer_id = offer_id
+        return super().form_valid(form)
+
+
+class OfferImageUpdateView(BaseUpdateView):
+    """Update an existing offer image"""
+    model = OfferImage
+    form_class = OfferImageForm
+    template_name = 'manager/form.html'
+    permission_required = 'offers.change_offerimage'
+    
+    def get_success_url(self):
+        image = self.get_object()
+        return reverse_lazy('manager:offer_images', kwargs={'offer_id': image.offer.id})
+
+
+class OfferImageDeleteView(BaseDeleteView):
+    """Delete an offer image"""
+    model = OfferImage
+    template_name = 'manager/confirm_delete.html'
+    permission_required = 'offers.delete_offerimage'
+    
+    def get_success_url(self):
+        image = self.get_object()
+        return reverse_lazy('manager:offer_images', kwargs={'offer_id': image.offer.id})

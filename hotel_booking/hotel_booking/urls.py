@@ -19,6 +19,7 @@ def api_root(request):
             'auth': f'{request.build_absolute_uri()}auth/',
             'hotels': f'{request.build_absolute_uri()}hotels/',
             'bookings': f'{request.build_absolute_uri()}bookings/',
+            'offers': f'{request.build_absolute_uri()}offers/',
             'docs': f'{request.build_absolute_uri()}docs/',
             'health': f'{request.build_absolute_uri()}health/',
         }
@@ -33,6 +34,7 @@ urlpatterns = [
     path('api/v1/auth/', include('accounts.urls')),
     path('api/v1/hotels/', include('core.urls')),
     path('api/v1/bookings/', include('bookings.urls')),
+    path('api/v1/offers/', include('offers.urls')),
 ]
 
 

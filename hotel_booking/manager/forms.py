@@ -3,6 +3,7 @@ from core.models import Hotel, Room, RoomType, Extra, SeasonalPricing, RoomAmeni
 from bookings.models import Booking, BookingExtra, BookingGuest
 from bookings.models import BookingHistory
 from core.models import RoomAmenity, RoomImage, RoomTypeAmenity, SeasonalPricing
+from offers.models import Offer, OfferCategory, OfferHighlight, OfferImage
 
 
 class BaseForm(forms.ModelForm):
@@ -216,7 +217,15 @@ class BookingHistoryForm(BaseForm):
         'action': 'e.g., Check-in, Payment, Status Change',
         'description': 'Describe the action taken',
     }
-    
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filter performed_by field to exclude managers and admins - only normal users
+        if 'performed_by' in self.fields:
+            self.fields['performed_by'].queryset = self.fields['performed_by'].queryset.exclude(
+                user_type__in=['staff', 'admin']
+            ).exclude(is_superuser=True)
+
     class Meta:
         model = BookingHistory
         fields = ['booking', 'action', 'description', 'performed_by']
@@ -259,4 +268,102 @@ class RoomTypeAmenityForm(BaseForm):
     class Meta:
         model = RoomTypeAmenity
         fields = '__all__'
+
+
+# Offer Management Forms
+class OfferForm(BaseForm):
+    """Form for creating and editing offers"""
+    placeholder_mapping = {
+        'name': 'e.g., Summer Special Discount',
+        'description': 'Describe the offer details and terms',
+        'short_description': 'Brief description for listings',
+        'discount_percentage': 'e.g., 15',
+        'discount_amount': 'e.g., 50.00',
+        'package_price': 'e.g., 299.99',
+        'minimum_stay': 'e.g., 2',
+        'maximum_stay': 'e.g., 7',
+        'minimum_advance_booking': 'e.g., 7',
+        'maximum_advance_booking': 'e.g., 90',
+        'total_bookings_limit': 'e.g., 100',
+        'terms_and_conditions': 'Enter the terms and conditions for this offer',
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set date widgets
+        self.fields['valid_from'].widget = forms.DateInput(attrs={'type': 'date'})
+        self.fields['valid_to'].widget = forms.DateInput(attrs={'type': 'date'})
+
+        # Limit hotel choices to active hotels only
+        self.fields['hotel'].queryset = Hotel.objects.filter(is_active=True)
+
+        # Limit category choices to active categories
+        self.fields['category'].queryset = OfferCategory.objects.filter(is_active=True)
+
+        # Limit room type choices to active room types
+        self.fields['applicable_room_types'].queryset = RoomType.objects.filter(is_active=True)
+
+    class Meta:
+        model = Offer
+        fields = [
+            'hotel', 'category', 'name', 'description', 'short_description', 'offer_type',
+            'discount_type', 'discount_percentage', 'discount_amount', 'package_price',
+            'valid_from', 'valid_to', 'minimum_stay', 'maximum_stay',
+            'minimum_advance_booking', 'maximum_advance_booking', 'applicable_room_types',
+            'total_bookings_limit', 'is_featured', 'is_active', 'is_combinable',
+            'terms_and_conditions'
+        ]
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 4}),
+            'short_description': forms.Textarea(attrs={'rows': 2}),
+            'terms_and_conditions': forms.Textarea(attrs={'rows': 6}),
+            'applicable_room_types': forms.CheckboxSelectMultiple(),
+        }
+
+
+class OfferCategoryForm(BaseForm):
+    """Form for creating and editing offer categories"""
+    placeholder_mapping = {
+        'name': 'e.g., Seasonal Offers',
+        'description': 'Describe this category of offers',
+        'order': 'e.g., 1',
+    }
+    
+    class Meta:
+        model = OfferCategory
+        fields = ['name', 'description', 'order', 'is_active']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 3}),
+        }
+
+
+class OfferHighlightForm(BaseForm):
+    """Form for creating and editing offer highlights"""
+    placeholder_mapping = {
+        'title': 'e.g., Free Breakfast Included',
+        'description': 'Optional detailed description of the highlight',
+        'order': 'e.g., 1',
+    }
+
+    class Meta:
+        model = OfferHighlight
+        fields = ['title', 'description', 'order']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 3}),
+        }
+
+
+class OfferImageForm(BaseForm):
+    """Form for creating and editing offer images"""
+    placeholder_mapping = {
+        'caption': 'e.g., Luxury suite with ocean view',
+        'order': 'e.g., 1',
+    }
+    
+    class Meta:
+        model = OfferImage
+        fields = ['image', 'caption', 'order', 'is_primary']
+        widgets = {
+            'image': forms.FileInput(attrs={'accept': 'image/*'}),
+        }
 

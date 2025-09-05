@@ -161,6 +161,22 @@
                 {% if perms.bookinghistory.add %}<a href="{% url 'manager:bookinghistory_add' %}" class="btn btn-link btn-sm">Add</a>{% endif %}
               </td>
             </tr>
+            <tr>
+              <td>Offers</td>
+              <td>{{ offers_count }}</td>
+              <td>
+                {% if perms.offer.view %}<a href="{% url 'manager:offers' %}" class="btn btn-link btn-sm">View</a>{% endif %}
+                {% if perms.offer.add %}<a href="{% url 'manager:offer_add' %}" class="btn btn-link btn-sm">Add</a>{% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td>Offer Categories</td>
+              <td>{{ offer_categories_count }}</td>
+              <td>
+                {% if perms.offercategory.view %}<a href="{% url 'manager:offer_categories' %}" class="btn btn-link btn-sm">View</a>{% endif %}
+                {% if perms.offercategory.add %}<a href="{% url 'manager:offer_category_add' %}" class="btn btn-link btn-sm">Add</a>{% endif %}
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
