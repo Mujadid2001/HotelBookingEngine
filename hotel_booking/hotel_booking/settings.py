@@ -133,7 +133,8 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'  # Used in production
 if DEBUG:
     STATICFILES_DIRS = [BASE_DIR / 'hotel_booking' / 'manager' / 'static']
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# Set media root to match Docker volume mounting
+MEDIA_ROOT = Path('/app/media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

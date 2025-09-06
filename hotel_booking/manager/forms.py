@@ -343,9 +343,27 @@ class OfferHighlightForm(BaseForm):
         'order': 'e.g., 1',
     }
 
+    def __init__(self, *args, **kwargs):
+        self.offer_id = kwargs.pop('offer_id', None)
+        super().__init__(*args, **kwargs)
+        
+        # If no offer_id is provided (global create), show offer selection
+        if not self.offer_id:
+            self.fields['offer'] = forms.ModelChoiceField(
+                queryset=Offer.objects.filter(is_active=True),
+                empty_label="Select an offer",
+                widget=forms.Select(attrs={'class': 'form-select'})
+            )
+        else:
+            # If offer_id is provided, hide the offer field but keep it in the form
+            self.fields['offer'] = forms.ModelChoiceField(
+                queryset=Offer.objects.filter(is_active=True),
+                widget=forms.HiddenInput()
+            )
+
     class Meta:
         model = OfferHighlight
-        fields = ['title', 'description', 'order']
+        fields = ['offer', 'title', 'description', 'order']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
         }
@@ -354,13 +372,26 @@ class OfferHighlightForm(BaseForm):
 class OfferImageForm(BaseForm):
     """Form for creating and editing offer images"""
     placeholder_mapping = {
+        'alt_text': 'e.g., Beautiful ocean view from deluxe suite',
         'caption': 'e.g., Luxury suite with ocean view',
         'order': 'e.g., 1',
     }
     
+    def __init__(self, *args, **kwargs):
+        self.offer_id = kwargs.pop('offer_id', None)
+        super().__init__(*args, **kwargs)
+        
+        # If no offer_id is provided (global create), show offer selection
+        if not self.offer_id:
+            self.fields['offer'] = forms.ModelChoiceField(
+                queryset=Offer.objects.filter(is_active=True),
+                empty_label="Select an offer",
+                widget=forms.Select(attrs={'class': 'form-select'})
+            )
+    
     class Meta:
         model = OfferImage
-        fields = ['image', 'caption', 'order', 'is_primary']
+        fields = ['image', 'alt_text', 'caption', 'order', 'is_primary']
         widgets = {
             'image': forms.FileInput(attrs={'accept': 'image/*'}),
         }

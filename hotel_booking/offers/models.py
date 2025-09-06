@@ -466,7 +466,11 @@ class OfferHighlight(TimestampedModel):
 def offer_image_upload_path(instance, filename):
     """Generate upload path for offer images"""
     # Create path: media/offer_images/hotel_id/offer_id/filename
-    return f'offer_images/{instance.offer.hotel.id}/{instance.offer.id}/{filename}'
+    if instance.offer and instance.offer.hotel:
+        return f'offer_images/{instance.offer.hotel.id}/{instance.offer.id}/{filename}'
+    else:
+        # Fallback path when offer is not set yet
+        return f'offer_images/temp/{filename}'
 
 
 class OfferImage(TimestampedModel):
@@ -506,11 +510,13 @@ class OfferImage(TimestampedModel):
         ordering = ['order', 'created_at']
     
     def __str__(self):
-        return f"{self.offer.name} - Image {self.order + 1}"
+        if self.offer:
+            return f"{self.offer.name} - Image {self.order + 1}"
+        return f"OfferImage {self.id or 'New'} - Image {self.order + 1}"
     
     def save(self, *args, **kwargs):
         # Ensure only one primary image per offer
-        if self.is_primary:
+        if self.is_primary and self.offer:
             OfferImage.objects.filter(
                 offer=self.offer,
                 is_primary=True

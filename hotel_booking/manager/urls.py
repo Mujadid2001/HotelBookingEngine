@@ -97,23 +97,27 @@ urlpatterns = [
     # Offer Categories
     path('offer-categories/', views_cbv.OfferCategoryListView.as_view(), name='offer_categories'),
     path('offer-categories/add/', views_cbv.OfferCategoryCreateView.as_view(), name='offer_category_add'),
-    path('offer-categories/<uuid:pk>/edit/', views_cbv.OfferCategoryUpdateView.as_view(), name='offer_category_edit'),
-    path('offer-categories/<uuid:pk>/delete/', views_cbv.OfferCategoryDeleteView.as_view(), name='offer_category_delete'),
+    path('offer-categories/<int:pk>/edit/', views_cbv.OfferCategoryUpdateView.as_view(), name='offer_category_edit'),
+    path('offer-categories/<int:pk>/delete/', views_cbv.OfferCategoryDeleteView.as_view(), name='offer_category_delete'),
     path('offer-categories/bulk-delete/', views_cbv.OfferCategoryListView.as_view(), name='offer_category_bulk_delete'),
 
     # Offer Highlights
     path('offers/<uuid:offer_id>/highlights/', views_cbv.OfferHighlightListView.as_view(), name='offer_highlights'),
     path('offers/<uuid:offer_id>/highlights/add/', views_cbv.OfferHighlightCreateView.as_view(), name='offer_highlight_add'),
-    path('offer-highlights/<uuid:pk>/edit/', views_cbv.OfferHighlightUpdateView.as_view(), name='offer_highlight_edit'),
-    path('offer-highlights/<uuid:pk>/delete/', views_cbv.OfferHighlightDeleteView.as_view(), name='offer_highlight_delete'),
     path('offer-highlights/', views_cbv.OfferHighlightListView.as_view(), name='offer_highlights_all'),
+    path('offer-highlights/add/', views_cbv.OfferHighlightCreateView.as_view(), name='offer_highlight_add_global'),
+    path('offer-highlights/<int:pk>/edit/', views_cbv.OfferHighlightUpdateView.as_view(), name='offer_highlight_edit'),
+    path('offer-highlights/<int:pk>/delete/', views_cbv.OfferHighlightDeleteView.as_view(), name='offer_highlight_delete'),
+    path('offer-highlights/bulk-delete/', views_cbv.OfferHighlightListView.as_view(), name='offer_highlight_bulk_delete'),
 
     # Offer Images
     path('offers/<uuid:offer_id>/images/', views_cbv.OfferImageListView.as_view(), name='offer_images'),
     path('offers/<uuid:offer_id>/images/add/', views_cbv.OfferImageCreateView.as_view(), name='offer_image_add'),
-    path('offer-images/<uuid:pk>/edit/', views_cbv.OfferImageUpdateView.as_view(), name='offer_image_edit'),
-    path('offer-images/<uuid:pk>/delete/', views_cbv.OfferImageDeleteView.as_view(), name='offer_image_delete'),
     path('offer-images/', views_cbv.OfferImageListView.as_view(), name='offer_images_all'),
+    path('offer-images/add/', views_cbv.OfferImageCreateView.as_view(), name='offer_image_add_global'),
+    path('offer-images/<int:pk>/edit/', views_cbv.OfferImageUpdateView.as_view(), name='offer_image_edit'),
+    path('offer-images/<int:pk>/delete/', views_cbv.OfferImageDeleteView.as_view(), name='offer_image_delete'),
+    path('offer-images/bulk-delete/', views_cbv.OfferImageListView.as_view(), name='offer_image_bulk_delete'),
 
     # Global search
     path('search/', views_cbv.GlobalSearchView.as_view(), name='global_search'),

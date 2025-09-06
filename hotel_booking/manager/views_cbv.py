@@ -317,6 +317,7 @@ class BaseListView(ModelContextMixin, ManagerRequiredMixin, PermissionRequiredMi
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         model_name = self.model._meta.model_name
+        ctx['model_name'] = model_name
         ctx['add_url_name'] = f'manager:{model_name}_add'
         
         # Only set detail_url_name for models that have detail views
@@ -376,14 +377,42 @@ class BulkActionMixin:
 
 class BaseCreateView(ModelContextMixin, LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     def form_valid(self, form):
-        messages.success(self.request, 'Created successfully.')
-        return super().form_valid(form)
+        try:
+            response = super().form_valid(form)
+            messages.success(self.request, 'Created successfully.')
+            return response
+        except Exception as e:
+            # Handle database constraint violations gracefully
+            from django.db import IntegrityError
+            if isinstance(e, IntegrityError):
+                error_message = str(e)
+                if 'unique constraint' in error_message.lower() or 'already exists' in error_message.lower():
+                    form.add_error(None, 'A record with this information already exists. Please check your input.')
+                else:
+                    form.add_error(None, 'There was an error saving your data. Please try again.')
+            else:
+                form.add_error(None, f'An unexpected error occurred: {str(e)}')
+            return self.form_invalid(form)
 
 
 class BaseUpdateView(ModelContextMixin, LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     def form_valid(self, form):
-        messages.success(self.request, 'Updated successfully.')
-        return super().form_valid(form)
+        try:
+            response = super().form_valid(form)
+            messages.success(self.request, 'Updated successfully.')
+            return response
+        except Exception as e:
+            # Handle database constraint violations gracefully
+            from django.db import IntegrityError
+            if isinstance(e, IntegrityError):
+                error_message = str(e)
+                if 'unique constraint' in error_message.lower() or 'already exists' in error_message.lower():
+                    form.add_error(None, 'A record with this information already exists. Please check your input.')
+                else:
+                    form.add_error(None, 'There was an error saving your data. Please try again.')
+            else:
+                form.add_error(None, f'An unexpected error occurred: {str(e)}')
+            return self.form_invalid(form)
 
     def get_success_url(self):
         # Default success URL to the list view of the model
@@ -785,9 +814,24 @@ class BookingListView(BulkActionMixin, BaseListView):
 
 class BookingDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Booking
-    template_name = 'manager/detail.html'
+    template_name = 'manager/booking_detail.html'
     context_object_name = 'object'
     permission_required = 'bookings.view_booking'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        booking = self.get_object()
+        
+        # Add related data
+        context['booking_extras'] = booking.booking_extras.all()
+        context['booking_guests'] = booking.additional_guests.all()
+        
+        # Add permission context
+        user = self.request.user
+        context['can_change'] = user.has_perm('bookings.change_booking')
+        context['can_delete'] = user.has_perm('bookings.delete_booking')
+        
+        return context
 
 
 class BookingCreateView(BaseCreateView):
@@ -1011,6 +1055,8 @@ class OfferCategoryListView(BulkActionMixin, BaseListView):
         ctx = super().get_context_data(**kwargs)
         # Override add_url_name to match urls.py name
         ctx['add_url_name'] = 'manager:offer_category_add'
+        # Override model_name to generate correct edit/delete URLs
+        ctx['model_name'] = 'offer_category'
         return ctx
 
 
@@ -1052,16 +1098,20 @@ class OfferHighlightListView(BulkActionMixin, BaseListView):
         offer_id = self.kwargs.get('offer_id')
         if offer_id:
             return OfferHighlight.objects.filter(offer_id=offer_id).order_by('order')
-        return OfferHighlight.objects.all().order_by('offer__title', 'order')
+        return OfferHighlight.objects.all().order_by('offer__name', 'order')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         offer_id = self.kwargs.get('offer_id')
         if offer_id:
             context['offer'] = Offer.objects.get(id=offer_id)
+            context['add_url_name'] = 'manager:offer_highlight_add'
         else:
-            # Remove add_url_name for global list view since add requires offer_id
-            context['add_url_name'] = None
+            # Global list view
+            context['add_url_name'] = 'manager:offer_highlight_add_global'
+        
+        # Override model_name to generate correct edit/delete URLs
+        context['model_name'] = 'offer_highlight'
         return context
 
 
@@ -1072,6 +1122,11 @@ class OfferHighlightCreateView(BaseCreateView):
     template_name = 'manager/form.html'
     permission_required = 'offers.add_offerhighlight'
     
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['offer_id'] = self.kwargs.get('offer_id')
+        return kwargs
+    
     def get_success_url(self):
         offer_id = self.kwargs.get('offer_id')
         if offer_id:
@@ -1081,7 +1136,9 @@ class OfferHighlightCreateView(BaseCreateView):
     def form_valid(self, form):
         offer_id = self.kwargs.get('offer_id')
         if offer_id:
-            form.instance.offer_id = offer_id
+            # Set the offer instance for the form
+            from offers.models import Offer
+            form.instance.offer = Offer.objects.get(id=offer_id)
         return super().form_valid(form)
 
 
@@ -1092,9 +1149,18 @@ class OfferHighlightUpdateView(BaseUpdateView):
     template_name = 'manager/form.html'
     permission_required = 'offers.change_offerhighlight'
     
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['offer_id'] = self.get_object().offer.id
+        return kwargs
+    
     def get_success_url(self):
-        highlight = self.get_object()
-        return reverse_lazy('manager:offer_highlights', kwargs={'offer_id': highlight.offer.id})
+        # Check if we came from a specific offer's highlights page
+        referer = self.request.META.get('HTTP_REFERER', '')
+        if 'offers/' in referer and '/highlights/' in referer:
+            highlight = self.get_object()
+            return reverse_lazy('manager:offer_highlights', kwargs={'offer_id': highlight.offer.id})
+        return reverse_lazy('manager:offer_highlights_all')
 
 
 class OfferHighlightDeleteView(BaseDeleteView):
@@ -1104,8 +1170,12 @@ class OfferHighlightDeleteView(BaseDeleteView):
     permission_required = 'offers.delete_offerhighlight'
     
     def get_success_url(self):
-        highlight = self.get_object()
-        return reverse_lazy('manager:offer_highlights', kwargs={'offer_id': highlight.offer.id})
+        # Check if we came from a specific offer's highlights page
+        referer = self.request.META.get('HTTP_REFERER', '')
+        if 'offers/' in referer and '/highlights/' in referer:
+            highlight = self.get_object()
+            return reverse_lazy('manager:offer_highlights', kwargs={'offer_id': highlight.offer.id})
+        return reverse_lazy('manager:offer_highlights_all')
 
 
 # Offer Images
@@ -1120,16 +1190,20 @@ class OfferImageListView(BulkActionMixin, BaseListView):
         offer_id = self.kwargs.get('offer_id')
         if offer_id:
             return OfferImage.objects.filter(offer_id=offer_id).order_by('order')
-        return OfferImage.objects.all().order_by('offer__title', 'order')
+        return OfferImage.objects.all().order_by('offer__name', 'order')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         offer_id = self.kwargs.get('offer_id')
         if offer_id:
             context['offer'] = Offer.objects.get(id=offer_id)
+            context['add_url_name'] = 'manager:offer_image_add'
         else:
-            # Remove add_url_name for global list view since add requires offer_id
-            context['add_url_name'] = None
+            # Global list view
+            context['add_url_name'] = 'manager:offer_image_add_global'
+        
+        # Override model_name to generate correct edit/delete URLs
+        context['model_name'] = 'offer_image'
         return context
 
 
@@ -1139,6 +1213,11 @@ class OfferImageCreateView(BaseCreateView):
     form_class = OfferImageForm
     template_name = 'manager/form.html'
     permission_required = 'offers.add_offerimage'
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['offer_id'] = self.kwargs.get('offer_id')
+        return kwargs
     
     def get_success_url(self):
         offer_id = self.kwargs.get('offer_id')
@@ -1160,9 +1239,18 @@ class OfferImageUpdateView(BaseUpdateView):
     template_name = 'manager/form.html'
     permission_required = 'offers.change_offerimage'
     
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['offer_id'] = self.get_object().offer.id
+        return kwargs
+    
     def get_success_url(self):
-        image = self.get_object()
-        return reverse_lazy('manager:offer_images', kwargs={'offer_id': image.offer.id})
+        # Check if we came from a specific offer's images page
+        referer = self.request.META.get('HTTP_REFERER', '')
+        if 'offers/' in referer and '/images/' in referer:
+            image = self.get_object()
+            return reverse_lazy('manager:offer_images', kwargs={'offer_id': image.offer.id})
+        return reverse_lazy('manager:offer_images_all')
 
 
 class OfferImageDeleteView(BaseDeleteView):
@@ -1172,5 +1260,9 @@ class OfferImageDeleteView(BaseDeleteView):
     permission_required = 'offers.delete_offerimage'
     
     def get_success_url(self):
-        image = self.get_object()
-        return reverse_lazy('manager:offer_images', kwargs={'offer_id': image.offer.id})
+        # Check if we came from a specific offer's images page
+        referer = self.request.META.get('HTTP_REFERER', '')
+        if 'offers/' in referer and '/images/' in referer:
+            image = self.get_object()
+            return reverse_lazy('manager:offer_images', kwargs={'offer_id': image.offer.id})
+        return reverse_lazy('manager:offer_images_all')
