@@ -50,6 +50,12 @@ class ManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
         )
 
 
+def manager_logout(request):
+    """Simple logout function that redirects to manager login."""
+    logout(request)
+    return redirect('manager:login')
+
+
 class ManagerLoginView(View):
     """
     Custom login view for managers only.
@@ -871,101 +877,132 @@ class GlobalSearchView(ManagerRequiredMixin, View):
         results = {}
         total_results = 0
         
-        # Search Bookings
-        if request.user.has_perm('bookings.view_booking'):
-            bookings = Booking.objects.filter(
-                Q(booking_reference__icontains=query) |
-                Q(primary_guest_name__icontains=query) |
-                Q(primary_guest_email__icontains=query) |
-                Q(primary_guest_phone__icontains=query)
-            )[:10]
-            if bookings.exists():
-                results['bookings'] = {
-                    'objects': bookings,
-                    'count': bookings.count(),
-                    'verbose_name': Booking._meta.verbose_name_plural,
-                    'url_name': 'manager:bookings'
-                }
-                total_results += bookings.count()
+        try:
+            # Search Bookings
+            if request.user.has_perm('bookings.view_booking'):
+                try:
+                    bookings = Booking.objects.filter(
+                        Q(booking_reference__icontains=query) |
+                        Q(primary_guest_name__icontains=query) |
+                        Q(primary_guest_email__icontains=query) |
+                        Q(primary_guest_phone__icontains=query)
+                    )[:10]
+                    if bookings.exists():
+                        results['bookings'] = {
+                            'objects': bookings,
+                            'count': bookings.count(),
+                            'verbose_name': Booking._meta.verbose_name_plural,
+                            'url_name': 'manager:bookings'
+                        }
+                        total_results += bookings.count()
+                except Exception as e:
+                    # Log the error but don't crash the search
+                    print(f"Error searching bookings: {e}")
+            
+            # Search Hotels
+            if request.user.has_perm('core.view_hotel'):
+                try:
+                    hotels = Hotel.objects.filter(
+                        Q(name__icontains=query) |
+                        Q(address_line_1__icontains=query) |
+                        Q(address_line_2__icontains=query) |
+                        Q(city__icontains=query)
+                    )[:10]
+                    if hotels.exists():
+                        results['hotels'] = {
+                            'objects': hotels,
+                            'count': hotels.count(),
+                            'verbose_name': Hotel._meta.verbose_name_plural,
+                            'url_name': 'manager:hotels'
+                        }
+                        total_results += hotels.count()
+                except Exception as e:
+                    print(f"Error searching hotels: {e}")
+            
+            # Search Rooms
+            if request.user.has_perm('core.view_room'):
+                try:
+                    rooms = Room.objects.filter(
+                        Q(room_number__icontains=query) |
+                        Q(room_type__name__icontains=query)
+                    )[:10]
+                    if rooms.exists():
+                        results['rooms'] = {
+                            'objects': rooms,
+                            'count': rooms.count(),
+                            'verbose_name': Room._meta.verbose_name_plural,
+                            'url_name': 'manager:rooms'
+                        }
+                        total_results += rooms.count()
+                except Exception as e:
+                    print(f"Error searching rooms: {e}")
+            
+            # Search Room Types
+            if request.user.has_perm('core.view_roomtype'):
+                try:
+                    room_types = RoomType.objects.filter(
+                        Q(name__icontains=query) |
+                        Q(description__icontains=query)
+                    )[:10]
+                    if room_types.exists():
+                        results['room_types'] = {
+                            'objects': room_types,
+                            'count': room_types.count(),
+                            'verbose_name': RoomType._meta.verbose_name_plural,
+                            'url_name': 'manager:roomtypes'
+                        }
+                        total_results += room_types.count()
+                except Exception as e:
+                    print(f"Error searching room types: {e}")
+            
+            # Search Extras
+            if request.user.has_perm('core.view_extra'):
+                try:
+                    extras = Extra.objects.filter(
+                        Q(name__icontains=query) |
+                        Q(description__icontains=query)
+                    )[:10]
+                    if extras.exists():
+                        results['extras'] = {
+                            'objects': extras,
+                            'count': extras.count(),
+                            'verbose_name': Extra._meta.verbose_name_plural,
+                            'url_name': 'manager:extras'
+                        }
+                        total_results += extras.count()
+                except Exception as e:
+                    print(f"Error searching extras: {e}")
+            
+            # Search Offers
+            if request.user.has_perm('offers.view_offer'):
+                try:
+                    offers = Offer.objects.filter(
+                        Q(title__icontains=query) |
+                        Q(description__icontains=query) |
+                        Q(promo_code__icontains=query) |
+                        Q(hotel__name__icontains=query)
+                    )[:10]
+                    if offers.exists():
+                        results['offers'] = {
+                            'objects': offers,
+                            'count': offers.count(),
+                            'verbose_name': Offer._meta.verbose_name_plural,
+                            'url_name': 'manager:offers'
+                        }
+                        total_results += offers.count()
+                except Exception as e:
+                    print(f"Error searching offers: {e}")
         
-        # Search Hotels
-        if request.user.has_perm('core.view_hotel'):
-            hotels = Hotel.objects.filter(
-                Q(name__icontains=query) |
-                Q(address_line_1__icontains=query) |
-                Q(address_line_2__icontains=query) |
-                Q(city__icontains=query)
-            )[:10]
-            if hotels.exists():
-                results['hotels'] = {
-                    'objects': hotels,
-                    'count': hotels.count(),
-                    'verbose_name': Hotel._meta.verbose_name_plural,
-                    'url_name': 'manager:hotels'
-                }
-                total_results += hotels.count()
-        
-        # Search Rooms
-        if request.user.has_perm('core.view_room'):
-            rooms = Room.objects.filter(
-                Q(room_number__icontains=query) |
-                Q(room_type__name__icontains=query)
-            )[:10]
-            if rooms.exists():
-                results['rooms'] = {
-                    'objects': rooms,
-                    'count': rooms.count(),
-                    'verbose_name': Room._meta.verbose_name_plural,
-                    'url_name': 'manager:rooms'
-                }
-                total_results += rooms.count()
-        
-        # Search Room Types
-        if request.user.has_perm('core.view_roomtype'):
-            room_types = RoomType.objects.filter(
-                Q(name__icontains=query) |
-                Q(description__icontains=query)
-            )[:10]
-            if room_types.exists():
-                results['room_types'] = {
-                    'objects': room_types,
-                    'count': room_types.count(),
-                    'verbose_name': RoomType._meta.verbose_name_plural,
-                    'url_name': 'manager:roomtypes'
-                }
-                total_results += room_types.count()
-        
-        # Search Extras
-        if request.user.has_perm('core.view_extra'):
-            extras = Extra.objects.filter(
-                Q(name__icontains=query) |
-                Q(description__icontains=query)
-            )[:10]
-            if extras.exists():
-                results['extras'] = {
-                    'objects': extras,
-                    'count': extras.count(),
-                    'verbose_name': Extra._meta.verbose_name_plural,
-                    'url_name': 'manager:extras'
-                }
-                total_results += extras.count()
-        
-        # Search Offers
-        if request.user.has_perm('offers.view_offer'):
-            offers = Offer.objects.filter(
-                Q(title__icontains=query) |
-                Q(description__icontains=query) |
-                Q(promo_code__icontains=query) |
-                Q(hotel__name__icontains=query)
-            )[:10]
-            if offers.exists():
-                results['offers'] = {
-                    'objects': offers,
-                    'count': offers.count(),
-                    'verbose_name': Offer._meta.verbose_name_plural,
-                    'url_name': 'manager:offers'
-                }
-                total_results += offers.count()
+        except Exception as e:
+            # General error handling for the entire search process
+            messages.error(request, 'An error occurred during search. Please try again.')
+            print(f"General search error: {e}")
+            return render(request, 'manager/search_results.html', {
+                'query': query,
+                'results': {},
+                'total_results': 0,
+                'error': True
+            })
         
         context = {
             'query': query,

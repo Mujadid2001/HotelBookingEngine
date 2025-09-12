@@ -23,6 +23,26 @@
       rel="stylesheet"
     />
     <link href="{% static 'manager/css/manager.css' %}" rel="stylesheet" />
+    <style>
+      /* Remove browser validation styling from search input */
+      .search-input:valid {
+        border-color: #ced4da !important;
+        box-shadow: none !important;
+        background-image: none !important;
+      }
+      
+      .search-input:focus {
+        border-color: #86b7fe !important;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+        background-image: none !important;
+      }
+      
+      /* Remove any tick marks or validation icons */
+      .search-input:valid:not(:placeholder-shown) {
+        background-image: none !important;
+        padding-right: 0.75rem !important;
+      }
+    </style>
   </head>
   <body class="manager-layout">
     <div class="d-flex" id="wrapper">
@@ -104,12 +124,13 @@
                   action="{% url 'manager:global_search' %}"
                 >
                   <input
-                    class="form-control form-control-sm me-2"
+                    class="form-control form-control-sm me-2 search-input"
                     type="search"
                     name="q"
                     placeholder="Search..."
                     aria-label="Search"
                     style="width: 350px;"
+                    autocomplete="off"
                   />
                   <button class="btn btn-primary btn-sm" type="submit">
                     <i class="fas fa-search me-1"></i>
@@ -123,7 +144,7 @@
               <div class="me-3 text-muted small">
                 Signed in as <strong>{{ request.user.get_username }}</strong>
               </div>
-              <a class="btn btn-outline-secondary btn-sm" href="/admin/logout/">
+              <a class="btn btn-outline-secondary btn-sm" href="{% url 'manager:logout' %}">
                 <i class="fa-solid fa-right-from-bracket me-1"></i>Logout
               </a>
             </div>

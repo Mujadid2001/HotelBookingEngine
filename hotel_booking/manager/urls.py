@@ -6,6 +6,7 @@ app_name = 'manager'
 
 urlpatterns = [
     path('login/', views_cbv.ManagerLoginView.as_view(), name='login'),
+    path('logout/', views_cbv.manager_logout, name='logout'),
     path('', views_cbv.DashboardView.as_view(), name='dashboard'),
     # Hotels
     path('hotels/', views_cbv.HotelListView.as_view(), name='hotels'),
