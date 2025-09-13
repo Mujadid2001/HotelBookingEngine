@@ -508,12 +508,41 @@ class HotelReviewsAPIView(generics.ListAPIView):
             return Response({'error': 'Hotel not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
-class HotelPoliciesAPIView(generics.RetrieveAPIView):
-    """Get hotel policies (alias for existing view)"""
+class HotelPoliciesAPIView(generics.GenericAPIView):
+    """Get hotel policies"""
     permission_classes = [permissions.AllowAny]
     
     def get(self, request, hotel_id):
-        return get_hotel_policies(request, hotel_id)
+        try:
+            hotel = get_object_or_404(Hotel, id=hotel_id, is_active=True)
+            
+            return Response({
+                'hotel': {
+                    'id': str(hotel.id),
+                    'name': hotel.name
+                },
+                'policies': {
+                    'cancellation_policy': hotel.cancellation_policy,
+                    'pet_policy': hotel.pet_policy,
+                    'smoking_policy': hotel.smoking_policy
+                },
+                'timing': {
+                    'check_in_time': hotel.check_in_time,
+                    'check_out_time': hotel.check_out_time
+                },
+                'contact': {
+                    'phone': hotel.phone_number,
+                    'email': hotel.email,
+                    'website': hotel.website
+                },
+                'address': hotel.full_address
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to get hotel policies: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class RoomDetailAPIView(generics.RetrieveAPIView):
