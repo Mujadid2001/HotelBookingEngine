@@ -12,10 +12,10 @@ from rest_framework.response import Response
 # Local imports
 from .models import Hotel, Room, RoomType, Extra, ContactMessage
 from .services import HotelSearchService, RoomAvailabilityService, ContactEmailService
-from bookings.serializers import (
-    RoomSerializer, RoomTypeSerializer, ExtraSerializer, RoomAvailabilitySerializer
+from .serializers import (
+    ContactMessageSerializer, RoomSerializer, RoomTypeSerializer, 
+    ExtraSerializer, RoomAvailabilitySerializer
 )
-from .serializers import ContactMessageSerializer
 
 
 class HotelSerializer(serializers.ModelSerializer):

@@ -1,5 +1,15 @@
 {% extends 'manager/base.html' %}
-{% load core_tags %}
+{%               <td>
+                {% if obj.name %}
+                  {{ obj.name }}
+                {% elif obj.booking_id %}
+                  {{ obj.booking_id }}
+                {% elif obj.room_number %}
+                  {{ obj.room_number }}
+                {% else %}
+                  {{ obj }}
+                {% endif %}
+              </td>ags %}
 
 {% block title %}Search Results{% endblock %}
 
@@ -39,8 +49,8 @@
               <td>
                 {% if obj.name %}
                   {{ obj.name }}
-                {% elif obj.booking_reference %}
-                  {{ obj.booking_reference }}
+                {% elif obj.booking_id %}
+                  {{ obj.booking_id }}
                 {% elif obj.room_number %}
                   {{ obj.room_number }}
                 {% else %}

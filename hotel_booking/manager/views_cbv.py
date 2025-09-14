@@ -14,13 +14,12 @@ from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 
-from bookings.models import Booking, BookingExtra, BookingGuest, BookingHistory
+from bookings.models import Booking
 from core.models import (Extra, Hotel, Room, RoomAmenity, RoomImage, RoomType,
                        RoomTypeAmenity, SeasonalPricing)
 from offers.models import Offer, OfferCategory, OfferHighlight, OfferImage
 
-from .forms import (BookingExtraForm, BookingForm, BookingGuestForm,
-                    BookingHistoryForm, ExtraForm, HotelForm, RoomAmenityForm,
+from .forms import (BookingForm, ExtraForm, HotelForm, RoomAmenityForm,
                     RoomForm, RoomImageForm, RoomTypeAmenityForm,
                     RoomTypeForm, SeasonalPricingForm, OfferForm, OfferCategoryForm,
                     OfferHighlightForm, OfferImageForm)
@@ -132,10 +131,10 @@ class DashboardView(ManagerRequiredMixin, View):
         user = request.user
         # Booking stats
         total_bookings = Booking.objects.count()
-        new_bookings = Booking.objects.filter(booking_date__date=today).count()
-        checked_in = Booking.objects.filter(status='checked_in').count()
-        upcoming = Booking.objects.filter(check_in__gte=today).count()
-        recent_bookings = Booking.objects.order_by('-booking_date')[:8]
+        new_bookings = Booking.objects.filter(created_at__date=today).count()
+        confirmed_bookings = Booking.objects.filter(status='confirmed').count()
+        upcoming = Booking.objects.filter(check_in_date__gte=today).count()
+        recent_bookings = Booking.objects.order_by('-created_at')[:8]
 
         # Core entities
         hotels_count = Hotel.objects.count()
@@ -156,9 +155,10 @@ class DashboardView(ManagerRequiredMixin, View):
         offer_images_count = OfferImage.objects.count()
 
         # Bookings related
-        bookingextras_count = BookingExtra.objects.count()
-        bookingguests_count = BookingGuest.objects.count()
-        bookinghistories_count = BookingHistory.objects.count()
+        # Note: Old complex booking models simplified to single Booking model
+        # bookingextras_count = BookingExtra.objects.count()
+        # bookingguests_count = BookingGuest.objects.count()
+        # bookinghistories_count = BookingHistory.objects.count()
 
         # Permissions for quick links
         perms = {
@@ -202,21 +202,6 @@ class DashboardView(ManagerRequiredMixin, View):
                 'view': user.has_perm('core.view_seasonalpricing'),
                 'change': user.has_perm('core.change_seasonalpricing'),
             },
-            'bookingextra': {
-                'add': user.has_perm('bookings.add_bookingextra'),
-                'view': user.has_perm('bookings.view_bookingextra'),
-                'change': user.has_perm('bookings.change_bookingextra'),
-            },
-            'bookingguest': {
-                'add': user.has_perm('bookings.add_bookingguest'),
-                'view': user.has_perm('bookings.view_bookingguest'),
-                'change': user.has_perm('bookings.change_bookingguest'),
-            },
-            'bookinghistory': {
-                'add': user.has_perm('bookings.add_bookinghistory'),
-                'view': user.has_perm('bookings.view_bookinghistory'),
-                'change': user.has_perm('bookings.change_bookinghistory'),
-            },
             'booking': {
                 'add': user.has_perm('bookings.add_booking'),
                 'view': user.has_perm('bookings.view_booking'),
@@ -251,7 +236,7 @@ class DashboardView(ManagerRequiredMixin, View):
         context = {
             'total_bookings': total_bookings,
             'new_bookings': new_bookings,
-            'checked_in': checked_in,
+            'confirmed_bookings': confirmed_bookings,
             'upcoming': upcoming,
             'recent_bookings': recent_bookings,
             'hotels_count': hotels_count,
@@ -268,9 +253,10 @@ class DashboardView(ManagerRequiredMixin, View):
             'offer_categories_count': offer_categories_count,
             'offer_highlights_count': offer_highlights_count,
             'offer_images_count': offer_images_count,
-            'bookingextras_count': bookingextras_count,
-            'bookingguests_count': bookingguests_count,
-            'bookinghistories_count': bookinghistories_count,
+            # Old booking related counts removed - using simplified booking model
+            # 'bookingextras_count': bookingextras_count,
+            # 'bookingguests_count': bookingguests_count,
+            # 'bookinghistories_count': bookinghistories_count,
             'perms': perms,
             'request': request,
         }
@@ -312,10 +298,12 @@ class BaseListView(ModelContextMixin, ManagerRequiredMixin, PermissionRequiredMi
                 filters |= Q(name__icontains=q)
             if 'room_number' in field_names:
                 filters |= Q(room_number__icontains=q)
-            if 'booking_reference' in field_names:
-                filters |= Q(booking_reference__icontains=q)
-            if 'primary_guest_name' in field_names:
-                filters |= Q(primary_guest_name__icontains=q)
+            if 'booking_id' in field_names:
+                filters |= Q(booking_id__icontains=q)
+            if 'guest_first_name' in field_names:
+                filters |= Q(guest_first_name__icontains=q)
+            if 'guest_last_name' in field_names:
+                filters |= Q(guest_last_name__icontains=q)
             if filters:
                 qs = qs.filter(filters)
         return qs
@@ -551,103 +539,105 @@ def export_as_csv(queryset, fields):
     return response
 
 
-# Booking extras, guests, history
-class BookingExtraListView(BulkActionMixin, BaseListView):
-    model = BookingExtra
-    template_name = 'manager/list.html'
-    context_object_name = 'objects'
-    permission_required = 'bookings.view_bookingextra'
+# Booking extras, guests, history - COMMENTED OUT
+# These old complex booking views are no longer needed after simplification to single Booking model
+
+# class BookingExtraListView(BulkActionMixin, BaseListView):
+#     model = BookingExtra
+#     template_name = 'manager/list.html'
+#     context_object_name = 'objects'
+#     permission_required = 'bookings.view_bookingextra'
 
 
-class BookingExtraCreateView(BaseCreateView):
-    model = BookingExtra
-    form_class = BookingExtraForm
-    template_name = 'manager/form.html'
-    success_url = reverse_lazy('manager:bookingextras')
-    permission_required = 'bookings.add_bookingextra'
+# class BookingExtraCreateView(BaseCreateView):
+#     model = BookingExtra
+#     form_class = BookingExtraForm
+#     template_name = 'manager/form.html'
+#     success_url = reverse_lazy('manager:bookingextras')
+#     permission_required = 'bookings.add_bookingextra'
 
 
-class BookingExtraUpdateView(BaseUpdateView):
-    model = BookingExtra
-    form_class = BookingExtraForm
-    template_name = 'manager/form.html'
-    success_url = reverse_lazy('manager:bookingextras')
-    permission_required = 'bookings.change_bookingextra'
+# class BookingExtraUpdateView(BaseUpdateView):
+#     model = BookingExtra
+#     form_class = BookingExtraForm
+#     template_name = 'manager/form.html'
+#     success_url = reverse_lazy('manager:bookingextras')
+#     permission_required = 'bookings.change_bookingextra'
 
 
-class BookingExtraDeleteView(BaseDeleteView):
-    model = BookingExtra
-    template_name = 'manager/confirm_delete.html'
-    success_url = reverse_lazy('manager:bookingextras')
-    permission_required = 'bookings.delete_bookingextra'
+# class BookingExtraDeleteView(BaseDeleteView):
+#     model = BookingExtra
+#     template_name = 'manager/confirm_delete.html'
+#     success_url = reverse_lazy('manager:bookingextras')
+#     permission_required = 'bookings.delete_bookingextra'
 
 
-class BookingExtraExportView(LoginRequiredMixin, PermissionRequiredMixin, View):
-    permission_required = 'bookings.view_bookingextra'
-    def get(self, request, *args, **kwargs):
-        qs = BookingExtra.objects.all()
-        fields = ['id', 'booking_id', 'extra_id', 'quantity', 'unit_price', 'total_price']
-        return export_as_csv(qs, fields)
+# class BookingExtraExportView(LoginRequiredMixin, PermissionRequiredMixin, View):
+#     permission_required = 'bookings.view_bookingextra'
+#     def get(self, request, *args, **kwargs):
+#         qs = BookingExtra.objects.all()
+#         fields = ['id', 'booking_id', 'extra_id', 'quantity', 'unit_price', 'total_price']
+#         return export_as_csv(qs, fields)
 
 
-class BookingGuestListView(BulkActionMixin, BaseListView):
-    model = BookingGuest
-    template_name = 'manager/list.html'
-    context_object_name = 'objects'
-    permission_required = 'bookings.view_bookingguest'
+# class BookingGuestListView(BulkActionMixin, BaseListView):
+#     model = BookingGuest
+#     template_name = 'manager/list.html'
+#     context_object_name = 'objects'
+#     permission_required = 'bookings.view_bookingguest'
 
 
-class BookingGuestCreateView(BaseCreateView):
-    model = BookingGuest
-    form_class = BookingGuestForm
-    template_name = 'manager/form.html'
-    success_url = reverse_lazy('manager:bookingguests')
-    permission_required = 'bookings.add_bookingguest'
+# class BookingGuestCreateView(BaseCreateView):
+#     model = BookingGuest
+#     form_class = BookingGuestForm
+#     template_name = 'manager/form.html'
+#     success_url = reverse_lazy('manager:bookingguests')
+#     permission_required = 'bookings.add_bookingguest'
 
 
-class BookingGuestUpdateView(BaseUpdateView):
-    model = BookingGuest
-    form_class = BookingGuestForm
-    template_name = 'manager/form.html'
-    success_url = reverse_lazy('manager:bookingguests')
-    permission_required = 'bookings.change_bookingguest'
+# class BookingGuestUpdateView(BaseUpdateView):
+#     model = BookingGuest
+#     form_class = BookingGuestForm
+#     template_name = 'manager/form.html'
+#     success_url = reverse_lazy('manager:bookingguests')
+#     permission_required = 'bookings.change_bookingguest'
 
 
-class BookingGuestDeleteView(BaseDeleteView):
-    model = BookingGuest
-    template_name = 'manager/confirm_delete.html'
-    success_url = reverse_lazy('manager:bookingguests')
-    permission_required = 'bookings.delete_bookingguest'
+# class BookingGuestDeleteView(BaseDeleteView):
+#     model = BookingGuest
+#     template_name = 'manager/confirm_delete.html'
+#     success_url = reverse_lazy('manager:bookingguests')
+#     permission_required = 'bookings.delete_bookingguest'
 
 
-class BookingHistoryListView(BulkActionMixin, BaseListView):
-    model = BookingHistory
-    template_name = 'manager/list.html'
-    context_object_name = 'objects'
-    permission_required = 'bookings.view_bookinghistory'
+# class BookingHistoryListView(BulkActionMixin, BaseListView):
+#     model = BookingHistory
+#     template_name = 'manager/list.html'
+#     context_object_name = 'objects'
+#     permission_required = 'bookings.view_bookinghistory'
 
 
-class BookingHistoryCreateView(BaseCreateView):
-    model = BookingHistory
-    form_class = BookingHistoryForm
-    template_name = 'manager/form.html'
-    success_url = reverse_lazy('manager:bookinghistories')
-    permission_required = 'bookings.add_bookinghistory'
+# class BookingHistoryCreateView(BaseCreateView):
+#     model = BookingHistory
+#     form_class = BookingHistoryForm
+#     template_name = 'manager/form.html'
+#     success_url = reverse_lazy('manager:bookinghistories')
+#     permission_required = 'bookings.add_bookinghistory'
 
 
-class BookingHistoryUpdateView(BaseUpdateView):
-    model = BookingHistory
-    form_class = BookingHistoryForm
-    template_name = 'manager/form.html'
-    success_url = reverse_lazy('manager:bookinghistories')
-    permission_required = 'bookings.change_bookinghistory'
+# class BookingHistoryUpdateView(BaseUpdateView):
+#     model = BookingHistory
+#     form_class = BookingHistoryForm
+#     template_name = 'manager/form.html'
+#     success_url = reverse_lazy('manager:bookinghistories')
+#     permission_required = 'bookings.change_bookinghistory'
 
 
-class BookingHistoryDeleteView(BaseDeleteView):
-    model = BookingHistory
-    template_name = 'manager/confirm_delete.html'
-    success_url = reverse_lazy('manager:bookinghistories')
-    permission_required = 'bookings.delete_bookinghistory'
+# class BookingHistoryDeleteView(BaseDeleteView):
+#     model = BookingHistory
+#     template_name = 'manager/confirm_delete.html'
+#     success_url = reverse_lazy('manager:bookinghistories')
+#     permission_required = 'bookings.delete_bookinghistory'
 
 
 # Room amenities
@@ -816,6 +806,34 @@ class BookingListView(BulkActionMixin, BaseListView):
     template_name = 'manager/list.html'
     context_object_name = 'objects'
     permission_required = 'bookings.view_booking'
+    
+    def get_queryset(self):
+        """Optimize queryset with related data"""
+        return super().get_queryset().select_related(
+            'hotel', 'room', 'room__room_type', 'user'
+        )
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Add booking statistics
+        total_bookings = Booking.objects.count()
+        pending_bookings = Booking.objects.filter(status='pending').count()
+        confirmed_bookings = Booking.objects.filter(status='confirmed').count()
+        cancelled_bookings = Booking.objects.filter(status='cancelled').count()
+        
+        context.update({
+            'stats': {
+                'total': total_bookings,
+                'pending': pending_bookings,
+                'confirmed': confirmed_bookings,
+                'cancelled': cancelled_bookings,
+            },
+            'status_choices': Booking.STATUS_CHOICES,
+            'payment_status_choices': Booking.PAYMENT_STATUS_CHOICES,
+        })
+        
+        return context
 
 
 class BookingDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
@@ -824,13 +842,27 @@ class BookingDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
     context_object_name = 'object'
     permission_required = 'bookings.view_booking'
     
+    def get_object(self, queryset=None):
+        """Get object with related data"""
+        return super().get_object(
+            queryset=self.get_queryset().select_related(
+                'hotel', 'room', 'room__room_type', 'user'
+            )
+        )
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         booking = self.get_object()
         
-        # Add related data
-        context['booking_extras'] = booking.booking_extras.all()
-        context['booking_guests'] = booking.additional_guests.all()
+        # Add calculated fields for display
+        context.update({
+            'guest_full_name': booking.guest_full_name(),
+            'guest_address_formatted': booking.guest_address_formatted(),
+            'total_guests': booking.total_guests(),
+            'tax_percentage': booking.tax_percentage(),
+            'discount_percentage': booking.discount_percentage(),
+            'can_be_cancelled': booking.can_be_cancelled(),
+        })
         
         # Add permission context
         user = self.request.user
@@ -861,6 +893,75 @@ class BookingDeleteView(BaseDeleteView):
     permission_required = 'bookings.delete_booking'
 
 
+class BookingExportView(ManagerRequiredMixin, View):
+    """Export bookings to CSV"""
+    
+    def get(self, request):
+        # Create HTTP response with CSV content type
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="bookings_export.csv"'
+        
+        # Create CSV writer
+        writer = csv.writer(response)
+        
+        # Write header row
+        writer.writerow([
+            'Booking ID', 'Guest Name', 'Email', 'Phone', 'Country',
+            'Hotel', 'Room', 'Check-in Date', 'Check-out Date', 'Nights',
+            'Adults', 'Children', 'Total Guests', 'Room Rate', 'Tax Amount',
+            'Discount Amount', 'Total Amount', 'Status', 'Payment Status',
+            'Special Requests', 'Created Date'
+        ])
+        
+        # Get all bookings with related data
+        bookings = Booking.objects.select_related(
+            'hotel', 'room', 'room__room_type', 'user'
+        ).order_by('-created_at')
+        
+        # Apply filters if provided
+        status = request.GET.get('status')
+        payment_status = request.GET.get('payment_status')
+        date_from = request.GET.get('date_from')
+        date_to = request.GET.get('date_to')
+        
+        if status:
+            bookings = bookings.filter(status=status)
+        if payment_status:
+            bookings = bookings.filter(payment_status=payment_status)
+        if date_from:
+            bookings = bookings.filter(check_in_date__gte=date_from)
+        if date_to:
+            bookings = bookings.filter(check_out_date__lte=date_to)
+        
+        # Write data rows
+        for booking in bookings:
+            writer.writerow([
+                booking.booking_id,
+                booking.guest_full_name(),
+                booking.guest_email,
+                booking.guest_phone,
+                booking.guest_country,
+                booking.hotel.name,
+                f"{booking.room.room_type.name} #{booking.room.room_number}",
+                booking.check_in_date.strftime('%Y-%m-%d'),
+                booking.check_out_date.strftime('%Y-%m-%d'),
+                booking.nights,
+                booking.adults,
+                booking.children,
+                booking.total_guests(),
+                booking.room_rate,
+                booking.tax_amount,
+                booking.discount_amount,
+                booking.total_amount,
+                booking.get_status_display(),
+                booking.get_payment_status_display(),
+                booking.special_requests or '',
+                booking.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            ])
+        
+        return response
+
+
 class GlobalSearchView(ManagerRequiredMixin, View):
     """Global search view that searches across multiple models"""
     
@@ -882,11 +983,14 @@ class GlobalSearchView(ManagerRequiredMixin, View):
             if request.user.has_perm('bookings.view_booking'):
                 try:
                     bookings = Booking.objects.filter(
-                        Q(booking_reference__icontains=query) |
-                        Q(primary_guest_name__icontains=query) |
-                        Q(primary_guest_email__icontains=query) |
-                        Q(primary_guest_phone__icontains=query)
-                    )[:10]
+                        Q(booking_id__icontains=query) |
+                        Q(guest_first_name__icontains=query) |
+                        Q(guest_last_name__icontains=query) |
+                        Q(guest_email__icontains=query) |
+                        Q(guest_phone__icontains=query) |
+                        Q(hotel__name__icontains=query) |
+                        Q(room__room_number__icontains=query)
+                    ).select_related('hotel', 'room', 'room__room_type')[:10]
                     if bookings.exists():
                         results['bookings'] = {
                             'objects': bookings,

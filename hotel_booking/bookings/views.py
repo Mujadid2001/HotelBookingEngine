@@ -1,1242 +1,784 @@
-# Django imports
-from django.shortcuts import get_object_or_404
-from django.db import transaction
+"""
+Complete Booking API Views with Separate CRUD Operations
+Provides explicit endpoints for each CRUD operation.
+"""
 from django.utils import timezone
-from django.db.models import Q, Prefetch
-
-# Django REST Framework imports
-from rest_framework import generics, status, permissions, filters
-from rest_framework.decorators import api_view, permission_classes
+from django.db.models import Q
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from django.conf import settings
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import generics, status, filters
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
+import logging
 
-# drf-spectacular imports
-from drf_spectacular.utils import (
-    extend_schema, 
-    OpenApiParameter, 
-    OpenApiResponse,
-    OpenApiExample
-)
-from drf_spectacular.types import OpenApiTypes
-
-# Local imports
-from .models import Booking, BookingHistory
+from django.contrib.auth import get_user_model
+from core.models import Room
+from .models import Booking
 from .serializers import (
-    BookingCreateSerializer, BookingDetailSerializer, BookingListSerializer,
-    BookingUpdateSerializer, RoomAvailabilitySerializer, BookingCancellationSerializer,
-    RoomSerializer, ExtraSerializer
+    BookingSerializer,
+    BookingCreateSerializer,
+    BookingUpdateSerializer,
+    BookingListSerializer,
+    BookingQuickSerializer
 )
-from .email_service import BookingEmailService
-from core.models import Hotel, Room, Extra
-from core.services import HotelSearchService, RoomAvailabilityService
+
+# Get User model
+User = get_user_model()
+
+# Set up logging for email functionality
+logger = logging.getLogger(__name__)
 
 
 class BookingPagination(PageNumberPagination):
-    """Custom pagination for bookings"""
-    page_size = 10
+    """Custom pagination for booking lists."""
+    page_size = 20
     page_size_query_param = 'page_size'
-    max_page_size = 50
+    max_page_size = 100
 
 
-@extend_schema(
-    operation_id='list_user_bookings',
-    summary='List User Bookings',
-    description='Retrieve a paginated list of bookings for the authenticated user with optional filtering and search.',
-    parameters=[
-        OpenApiParameter(
-            name='page',
-            type=OpenApiTypes.INT,
-            location=OpenApiParameter.QUERY,
-            description='Page number for pagination',
-            required=False
-        ),
-        OpenApiParameter(
-            name='page_size',
-            type=OpenApiTypes.INT,
-            location=OpenApiParameter.QUERY,
-            description='Number of items per page (max 50)',
-            required=False
-        ),
-        OpenApiParameter(
-            name='search',
-            type=OpenApiTypes.STR,
-            location=OpenApiParameter.QUERY,
-            description='Search by booking reference or primary guest name',
-            required=False
-        ),
-        OpenApiParameter(
-            name='ordering',
-            type=OpenApiTypes.STR,
-            location=OpenApiParameter.QUERY,
-            description='Order by: booking_date, check_in, total_price (prefix with - for descending)',
-            required=False,
-            examples=[
-                OpenApiExample('Most recent first', value='-booking_date'),
-                OpenApiExample('Check-in date ascending', value='check_in'),
-                OpenApiExample('Price descending', value='-total_price'),
-            ]
-        ),
-    ],
-    responses={
-        200: OpenApiResponse(
-            response=BookingListSerializer,
-            description='Successfully retrieved booking list',
-            examples=[
-                OpenApiExample(
-                    'Booking List Response',
-                    value={
-                        "count": 25,
-                        "next": "http://example.com/api/v1/bookings/?page=2",
-                        "previous": None,
-                        "results": [
-                            {
-                                "booking_reference": "BK123456789",
-                                "status": "confirmed",
-                                "booking_date": "2024-08-15T10:30:00Z",
-                                "check_in": "2024-12-25",
-                                "check_out": "2024-12-27",
-                                "total_price": "250.00",
-                                "hotel_name": "Grand Plaza Hotel",
-                                "room_number": "101"
-                            }
-                        ]
-                    }
-                )
-            ]
-        ),
-        401: OpenApiResponse(description='Authentication required'),
-        403: OpenApiResponse(description='Permission denied'),
-    },
-    tags=['Bookings']
-)
+def send_booking_confirmation_email(booking):
+    """
+    Send booking confirmation email to the guest.
+    
+    Args:
+        booking: Booking instance
+    
+    Returns:
+        bool: True if email sent successfully, False otherwise
+    """
+    try:
+        # Prepare email data
+        subject = f'Booking Confirmation - {booking.booking_id}'
+        
+        # Email context
+        context = {
+            'booking': booking,
+            'guest_name': booking.guest_full_name(),
+            'hotel_name': booking.hotel.name,
+            'room_name': f"{booking.room.room_type.name} #{booking.room.room_number}",
+            'check_in_date': booking.check_in_date,
+            'check_out_date': booking.check_out_date,
+            'total_amount': booking.total_amount,
+            'booking_reference': booking.booking_id,
+            'adults': booking.adults,
+            'children': booking.children,
+        }
+        
+        # Create HTML email content
+        html_message = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+                    Booking Confirmation
+                </h2>
+                
+                <p>Dear {context['guest_name']},</p>
+                
+                <p>Thank you for your booking! Your reservation has been confirmed.</p>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                    <h3 style="color: #2c3e50; margin-top: 0;">Booking Details</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Booking Reference:</td>
+                            <td style="padding: 8px 0;">{context['booking_reference']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Hotel:</td>
+                            <td style="padding: 8px 0;">{context['hotel_name']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Room:</td>
+                            <td style="padding: 8px 0;">{context['room_name']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Check-in:</td>
+                            <td style="padding: 8px 0;">{context['check_in_date']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Check-out:</td>
+                            <td style="padding: 8px 0;">{context['check_out_date']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Guests:</td>
+                            <td style="padding: 8px 0;">{context['adults']} Adults, {context['children']} Children</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Total Amount:</td>
+                            <td style="padding: 8px 0; font-size: 18px; color: #27ae60;">${context['total_amount']}</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div style="background-color: #e8f5e8; padding: 15px; border-radius: 5px; border-left: 4px solid #27ae60;">
+                    <p style="margin: 0;"><strong>Important:</strong> Please keep this confirmation email for your records. You will need your booking reference for check-in.</p>
+                </div>
+                
+                <p style="margin-top: 30px;">
+                    We look forward to welcoming you to {context['hotel_name']}!
+                </p>
+                
+                <p>Best regards,<br>
+                The Hotel Booking Team</p>
+                
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+                <p style="font-size: 12px; color: #666;">
+                    This is an automated message. Please do not reply to this email.
+                    If you have any questions, please contact our customer service.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Plain text version (fallback)
+        plain_message = f"""
+        Booking Confirmation
+        
+        Dear {context['guest_name']},
+        
+        Thank you for your booking! Your reservation has been confirmed.
+        
+        Booking Details:
+        - Booking Reference: {context['booking_reference']}
+        - Hotel: {context['hotel_name']}
+        - Room: {context['room_name']}
+        - Check-in: {context['check_in_date']}
+        - Check-out: {context['check_out_date']}
+        - Guests: {context['adults']} Adults, {context['children']} Children
+        - Total Amount: ${context['total_amount']}
+        
+        Please keep this confirmation email for your records.
+        
+        We look forward to welcoming you!
+        
+        Best regards,
+        The Hotel Booking Team
+        """
+        
+        # Send email
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@hotelbooking.com')
+        recipient_list = [booking.guest_email]
+        
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=from_email,
+            recipient_list=recipient_list,
+            html_message=html_message,
+            fail_silently=False,
+        )
+        
+        logger.info(f"Booking confirmation email sent successfully to {booking.guest_email} for booking {booking.booking_id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to send booking confirmation email to {booking.guest_email}: {str(e)}")
+        return False
+
+
+def send_booking_cancellation_email(booking):
+    """
+    Send booking cancellation confirmation email to the guest.
+    
+    Args:
+        booking: Booking instance (cancelled)
+    
+    Returns:
+        bool: True if email sent successfully, False otherwise
+    """
+    try:
+        # Prepare email data
+        subject = f'Booking Cancellation Confirmation - {booking.booking_id}'
+        
+        # Email context
+        context = {
+            'booking': booking,
+            'guest_name': booking.guest_full_name(),
+            'hotel_name': booking.hotel.name,
+            'room_name': f"{booking.room.room_type.name} #{booking.room.room_number}",
+            'check_in_date': booking.check_in_date,
+            'check_out_date': booking.check_out_date,
+            'total_amount': booking.total_amount,
+            'booking_reference': booking.booking_id,
+            'adults': booking.adults,
+            'children': booking.children,
+            'cancellation_date': timezone.now().date(),
+        }
+        
+        # Create HTML email content
+        html_message = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #e74c3c; border-bottom: 2px solid #e74c3c; padding-bottom: 10px;">
+                    Booking Cancellation Confirmation
+                </h2>
+                
+                <p>Dear {context['guest_name']},</p>
+                
+                <p>We confirm that your booking has been successfully cancelled as requested.</p>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                    <h3 style="color: #2c3e50; margin-top: 0;">Cancelled Booking Details</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Booking Reference:</td>
+                            <td style="padding: 8px 0;">{context['booking_reference']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Hotel:</td>
+                            <td style="padding: 8px 0;">{context['hotel_name']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Room:</td>
+                            <td style="padding: 8px 0;">{context['room_name']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Check-in:</td>
+                            <td style="padding: 8px 0;">{context['check_in_date']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Check-out:</td>
+                            <td style="padding: 8px 0;">{context['check_out_date']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Guests:</td>
+                            <td style="padding: 8px 0;">{context['adults']} Adults, {context['children']} Children</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Original Amount:</td>
+                            <td style="padding: 8px 0;">${context['total_amount']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Cancellation Date:</td>
+                            <td style="padding: 8px 0;">{context['cancellation_date']}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Status:</td>
+                            <td style="padding: 8px 0; color: #e74c3c; font-weight: bold;">CANCELLED</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; border-left: 4px solid #ffc107;">
+                    <p style="margin: 0;"><strong>Refund Information:</strong> If applicable, refunds will be processed according to our cancellation policy. Please allow 5-7 business days for the refund to appear in your account.</p>
+                </div>
+                
+                <div style="background-color: #f0f9ff; padding: 15px; border-radius: 5px; border-left: 4px solid #3b82f6; margin-top: 15px;">
+                    <p style="margin: 0;"><strong>Need to make a new booking?</strong> We'd be happy to help you find alternative accommodations. Please contact our customer service team or visit our website.</p>
+                </div>
+                
+                <p style="margin-top: 30px;">
+                    We're sorry to see your plans change, but we understand that sometimes cancellations are necessary. We hope to welcome you to {context['hotel_name']} in the future!
+                </p>
+                
+                <p>If you have any questions about this cancellation or need assistance with a new booking, please don't hesitate to contact us.</p>
+                
+                <p>Best regards,<br>
+                The Hotel Booking Team</p>
+                
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+                <p style="font-size: 12px; color: #666;">
+                    This is an automated message. Please do not reply to this email.
+                    If you have any questions, please contact our customer service.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Plain text version (fallback)
+        plain_message = f"""
+        Booking Cancellation Confirmation
+        
+        Dear {context['guest_name']},
+        
+        We confirm that your booking has been successfully cancelled as requested.
+        
+        Cancelled Booking Details:
+        - Booking Reference: {context['booking_reference']}
+        - Hotel: {context['hotel_name']}
+        - Room: {context['room_name']}
+        - Check-in: {context['check_in_date']}
+        - Check-out: {context['check_out_date']}
+        - Guests: {context['adults']} Adults, {context['children']} Children
+        - Original Amount: ${context['total_amount']}
+        - Cancellation Date: {context['cancellation_date']}
+        - Status: CANCELLED
+        
+        Refund Information: If applicable, refunds will be processed according to our 
+        cancellation policy. Please allow 5-7 business days for the refund to appear 
+        in your account.
+        
+        We're sorry to see your plans change, but we hope to welcome you in the future!
+        
+        If you have any questions about this cancellation, please contact our customer service.
+        
+        Best regards,
+        The Hotel Booking Team
+        """
+        
+        # Send email
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@hotelbooking.com')
+        recipient_list = [booking.guest_email]
+        
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=from_email,
+            recipient_list=recipient_list,
+            html_message=html_message,
+            fail_silently=False,
+        )
+        
+        logger.info(f"Booking cancellation email sent successfully to {booking.guest_email} for booking {booking.booking_id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to send booking cancellation email to {booking.guest_email}: {str(e)}")
+        return False
+
+
+# CRUD Operation 1: READ (List all bookings)
 class BookingListAPIView(generics.ListAPIView):
-    """List user's bookings with filtering and pagination"""
+    """
+    List all bookings with filtering and search capabilities.
+    
+    GET: Returns paginated list of bookings
+    """
+    queryset = Booking.objects.all()
     serializer_class = BookingListSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     pagination_class = BookingPagination
-    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
-    search_fields = ['booking_reference', 'primary_guest_name']
-    ordering_fields = ['booking_date', 'check_in', 'total_price']
-    ordering = ['-booking_date']
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    
+    # Filtering options
+    filterset_fields = {
+        'status': ['exact', 'in'],
+        'payment_status': ['exact', 'in'],
+        'check_in_date': ['gte', 'lte', 'exact'],
+        'check_out_date': ['gte', 'lte', 'exact'],
+        'created_at': ['gte', 'lte'],
+        'room': ['exact'],
+        'user': ['exact'],
+    }
+    
+    # Search across guest information
+    search_fields = [
+        'guest_first_name',
+        'guest_last_name', 
+        'guest_email',
+        'guest_phone',
+        'booking_id',
+        'room__room_type__name',
+        'room__room_number'
+    ]
+    
+    # Ordering options
+    ordering_fields = [
+        'created_at',
+        'check_in_date',
+        'check_out_date',
+        'total_amount',
+        'status'
+    ]
+    ordering = ['-created_at']  # Default ordering
     
     def get_queryset(self):
-        """Get bookings for the authenticated user"""
-        return Booking.objects.filter(
-            user=self.request.user
-        ).select_related(
-            'room__hotel', 'room__room_type'
+        """Enhanced queryset with optimized queries."""
+        queryset = Booking.objects.select_related(
+            'user', 'room', 'room__hotel', 'room__room_type'
         ).prefetch_related(
-            'booking_extras__extra'
+            'room__amenities'
         )
+        
+        # Additional filtering based on query parameters
+        guest_name = self.request.query_params.get('guest_name')
+        if guest_name:
+            queryset = queryset.filter(
+                Q(guest_first_name__icontains=guest_name) |
+                Q(guest_last_name__icontains=guest_name)
+            )
+        
+        # Filter by date range
+        check_in_from = self.request.query_params.get('check_in_from')
+        check_in_to = self.request.query_params.get('check_in_to')
+        if check_in_from:
+            queryset = queryset.filter(check_in_date__gte=check_in_from)
+        if check_in_to:
+            queryset = queryset.filter(check_in_date__lte=check_in_to)
+            
+        # Filter upcoming bookings
+        upcoming = self.request.query_params.get('upcoming')
+        if upcoming == 'true':
+            today = timezone.now().date()
+            queryset = queryset.filter(check_in_date__gte=today)
+            
+        # Filter current bookings (checked in)
+        current = self.request.query_params.get('current')
+        if current == 'true':
+            today = timezone.now().date()
+            queryset = queryset.filter(
+                check_in_date__lte=today,
+                check_out_date__gte=today,
+                status='confirmed'
+            )
+        
+        return queryset
 
 
-@extend_schema(
-    operation_id='get_booking_detail',
-    summary='Get Booking Details',
-    description='Retrieve detailed information about a specific booking using the booking reference.',
-    parameters=[
-        OpenApiParameter(
-            name='booking_reference',
-            type=OpenApiTypes.STR,
-            location=OpenApiParameter.PATH,
-            description='Unique booking reference number',
-            required=True,
-            examples=[
-                OpenApiExample('Booking Reference', value='BK123456789')
-            ]
-        ),
-    ],
-    responses={
-        200: OpenApiResponse(
-            response=BookingDetailSerializer,
-            description='Successfully retrieved booking details'
-        ),
-        401: OpenApiResponse(description='Authentication required'),
-        403: OpenApiResponse(description='Permission denied'),
-        404: OpenApiResponse(description='Booking not found'),
-    },
-    tags=['Bookings']
-)
-class BookingDetailAPIView(generics.RetrieveAPIView):
-    """Get detailed booking information"""
-    serializer_class = BookingDetailSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    lookup_field = 'booking_reference'
-    
-    def get_queryset(self):
-        """Get booking for the authenticated user"""
-        return Booking.objects.filter(
-            user=self.request.user
-        ).select_related(
-            'room__hotel', 'room__room_type', 'user'
-        ).prefetch_related(
-            'booking_extras__extra',
-            'additional_guests',
-            'history__performed_by'
-        )
-
-
-@extend_schema(
-    operation_id='create_booking',
-    summary='Create New Booking',
-    description='Create a new hotel booking with automatic confirmation email and booking reference generation.',
-    request=BookingCreateSerializer,
-    responses={
-        201: OpenApiResponse(
-            description='Booking created successfully',
-            examples=[
-                OpenApiExample(
-                    'Successful Booking Creation',
-                    value={
-                        "message": "Booking created successfully",
-                        "booking": {
-                            "booking_reference": "BK123456789",
-                            "status": "confirmed",
-                            "total_price": "250.00",
-                            "check_in": "2024-12-25",
-                            "check_out": "2024-12-27"
-                        },
-                        "email_notification": {
-                            "sent": True,
-                            "recipient": "guest@example.com"
-                        }
-                    }
-                )
-            ]
-        ),
-        400: OpenApiResponse(
-            description='Invalid booking data or room unavailable',
-            examples=[
-                OpenApiExample(
-                    'Validation Error',
-                    value={
-                        "error": "Room is not available for the selected dates"
-                    }
-                )
-            ]
-        ),
-        401: OpenApiResponse(description='Authentication required'),
-        403: OpenApiResponse(description='Permission denied'),
-    },
-    tags=['Bookings']
-)
+# CRUD Operation 2: CREATE (Create new booking)
 class BookingCreateAPIView(generics.CreateAPIView):
-    """Create a new booking"""
+    """
+    Create a new booking and send confirmation email.
+    
+    POST: Creates a new booking with validation and sends confirmation email
+    """
+    queryset = Booking.objects.all()
     serializer_class = BookingCreateSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
+    
+    def perform_create(self, serializer):
+        """Enhanced booking creation with automatic calculations."""
+        # Save the booking (booking_id will be auto-generated by the model)
+        booking = serializer.save()
+        
+        # Send confirmation email
+        email_sent = send_booking_confirmation_email(booking)
+        
+        # Log email status
+        if email_sent:
+            logger.info(f"Booking {booking.booking_id} created and confirmation email sent")
+        else:
+            logger.warning(f"Booking {booking.booking_id} created but email failed to send")
+        
+        # Store email status for response
+        self.email_sent = email_sent
+        self.booking_instance = booking
     
     def create(self, request, *args, **kwargs):
-        """Create booking with transaction safety and email notification"""
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        try:
-            with transaction.atomic():
-                booking = serializer.save()
-                
-                # Send confirmation email
-                email_sent = BookingEmailService.send_booking_confirmation(booking)
-                
-                # Create history entry
-                BookingHistory.objects.create(
-                    booking=booking,
-                    action='created',
-                    description='Booking created successfully',
-                    performed_by=request.user
-                )
-                
-                # Return detailed booking information
-                detail_serializer = BookingDetailSerializer(
-                    booking, context={'request': request}
-                )
-                
-                return Response(
-                    {
-                        'message': 'Booking created successfully',
-                        'booking': detail_serializer.data,
-                        'email_notification': {
-                            'sent': email_sent,
-                            'recipient': booking.primary_guest_email
-                        }
-                    },
-                    status=status.HTTP_201_CREATED
-                )
-        except Exception as e:
-            return Response(
-                {'error': f'Failed to create booking: {str(e)}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        """Custom create response with booking details and email status."""
+        response = super().create(request, *args, **kwargs)
+        if response.status_code == status.HTTP_201_CREATED:
+            # Get email status from perform_create
+            email_sent = getattr(self, 'email_sent', False)
+            booking = getattr(self, 'booking_instance', None)
+            
+            response.data = {
+                'success': True,
+                'message': 'Booking created successfully',
+                'booking': response.data,
+                'email_confirmation': {
+                    'sent': email_sent,
+                    'recipient': booking.guest_email if booking else None,
+                    'message': 'Confirmation email sent' if email_sent else 'Confirmation email failed to send'
+                }
+            }
+        return response
 
 
-class BookingUpdateAPIView(generics.UpdateAPIView):
-    """Update booking details"""
-    serializer_class = BookingUpdateSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    lookup_field = 'booking_reference'
+# CRUD Operation 3: READ (Get specific booking details)
+class BookingDetailAPIView(generics.RetrieveAPIView):
+    """
+    Get detailed booking information.
+    
+    GET: Returns detailed booking information
+    """
+    queryset = Booking.objects.all()
+    serializer_class = BookingSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'pk'
     
     def get_queryset(self):
-        """Get booking for the authenticated user"""
-        return Booking.objects.filter(
-            user=self.request.user,
-            status__in=['pending', 'confirmed']  # Only allow updates for certain statuses
+        """Optimized queryset for detailed view."""
+        return Booking.objects.select_related(
+            'user', 'room', 'room__hotel', 'room__room_type'
+        ).prefetch_related(
+            'room__amenities', 'room__images'
         )
+
+
+# CRUD Operation 4: UPDATE (Update specific booking)
+class BookingUpdateAPIView(generics.UpdateAPIView):
+    """
+    Update booking details and handle status changes.
+    
+    PUT/PATCH: Updates booking details and sends emails for status changes
+    """
+    queryset = Booking.objects.all()
+    serializer_class = BookingUpdateSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'pk'
+    
+    def get_queryset(self):
+        """Optimized queryset for update view."""
+        return Booking.objects.select_related(
+            'user', 'room', 'room__hotel', 'room__room_type'
+        )
+    
+    def perform_update(self, serializer):
+        """Enhanced update with timestamp tracking and email handling."""
+        # Get the original status before update
+        original_status = self.get_object().status
+        
+        # Save the updated booking
+        booking = serializer.save(updated_at=timezone.now())
+        
+        # Check if status changed to cancelled
+        if original_status != 'cancelled' and booking.status == 'cancelled':
+            # Send cancellation email
+            email_sent = send_booking_cancellation_email(booking)
+            
+            # Log email status
+            if email_sent:
+                logger.info(f"Booking {booking.booking_id} status updated to cancelled and email sent")
+            else:
+                logger.warning(f"Booking {booking.booking_id} status updated to cancelled but email failed")
+            
+            # Store email status for response
+            self.cancellation_email_sent = email_sent
+        else:
+            self.cancellation_email_sent = False
+        
+        self.booking_instance = booking
     
     def update(self, request, *args, **kwargs):
-        """Update booking and return detailed information with email notification"""
-        partial = kwargs.pop('partial', False)
+        """Custom update response with email status."""
+        response = super().update(request, *args, **kwargs)
+        if response.status_code == status.HTTP_200_OK:
+            # Get email status from perform_update
+            cancellation_email_sent = getattr(self, 'cancellation_email_sent', False)
+            booking = getattr(self, 'booking_instance', None)
+            
+            response_data = {
+                'success': True,
+                'message': 'Booking updated successfully',
+                'booking': response.data
+            }
+            
+            # Add email status if cancellation email was sent
+            if cancellation_email_sent and booking:
+                response_data['email_confirmation'] = {
+                    'type': 'cancellation',
+                    'sent': True,
+                    'recipient': booking.guest_email,
+                    'message': 'Cancellation confirmation email sent'
+                }
+            elif hasattr(self, 'cancellation_email_sent') and booking and booking.status == 'cancelled':
+                response_data['email_confirmation'] = {
+                    'type': 'cancellation',
+                    'sent': False,
+                    'recipient': booking.guest_email,
+                    'message': 'Cancellation email failed to send'
+                }
+            
+            response.data = response_data
+        return response
+
+
+# CRUD Operation 5: DELETE (Cancel/Delete booking)
+class BookingDeleteAPIView(generics.DestroyAPIView):
+    """
+    Cancel or delete a booking and send cancellation email.
+    
+    DELETE: Cancels booking (soft delete) and sends cancellation confirmation email
+    """
+    queryset = Booking.objects.all()
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'pk'
+    
+    def get_queryset(self):
+        """Optimized queryset for cancellation view."""
+        return Booking.objects.select_related(
+            'user', 'room', 'room__hotel', 'room__room_type'
+        )
+    
+    def perform_destroy(self, instance):
+        """Soft delete - mark as cancelled instead of deleting and send email."""
+        # Store original status for email decision
+        was_active = instance.status in ['pending', 'confirmed']
+        
+        # Mark as cancelled
+        instance.status = 'cancelled'
+        instance.updated_at = timezone.now()
+        instance.save()
+        
+        # Send cancellation email only if booking was active
+        if was_active:
+            email_sent = send_booking_cancellation_email(instance)
+            
+            # Log email status
+            if email_sent:
+                logger.info(f"Booking {instance.booking_id} cancelled and cancellation email sent")
+            else:
+                logger.warning(f"Booking {instance.booking_id} cancelled but email failed to send")
+            
+            # Store email status for response
+            self.email_sent = email_sent
+        else:
+            self.email_sent = False
+            logger.info(f"Booking {instance.booking_id} was already cancelled - no email sent")
+        
+        self.booking_instance = instance
+        
+    def destroy(self, request, *args, **kwargs):
+        """Override destroy to return appropriate response with email status."""
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
         
-        # Check if booking can be updated
-        if instance.status not in ['pending', 'confirmed']:
+        # Check if booking is already cancelled
+        if instance.status == 'cancelled':
             return Response(
-                {'error': 'Booking cannot be updated in current status'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        with transaction.atomic():
-            booking = serializer.save()
-            
-            # Send modification email
-            email_sent = BookingEmailService.send_booking_modification(booking)
-            
-            # Create history entry
-            BookingHistory.objects.create(
-                booking=booking,
-                action='modified',
-                description='Booking details updated',
-                performed_by=request.user
-            )
-        
-        # Return updated booking details
-        detail_serializer = BookingDetailSerializer(
-            booking, context={'request': request}
-        )
-        
-        return Response({
-            'message': 'Booking updated successfully',
-            'booking': detail_serializer.data,
-            'email_notification': {
-                'sent': email_sent,
-                'recipient': booking.primary_guest_email
-            }
-        })
-
-
-@extend_schema(
-    operation_id='cancel_booking',
-    summary='Cancel Booking',
-    description='Cancel an existing booking with a specified reason. Sends automatic cancellation email to the guest.',
-    parameters=[
-        OpenApiParameter(
-            name='booking_reference',
-            type=OpenApiTypes.STR,
-            location=OpenApiParameter.PATH,
-            description='Unique booking reference number',
-            required=True,
-            examples=[
-                OpenApiExample('Booking Reference', value='BK123456789')
-            ]
-        ),
-    ],
-    request=BookingCancellationSerializer,
-    responses={
-        200: OpenApiResponse(
-            description='Booking cancelled successfully',
-            examples=[
-                OpenApiExample(
-                    'Successful Cancellation',
-                    value={
-                        "message": "Booking cancelled successfully",
-                        "booking_reference": "BK123456789",
-                        "email_notification": {
-                            "sent": True,
-                            "recipient": "guest@example.com"
-                        }
-                    }
-                )
-            ]
-        ),
-        400: OpenApiResponse(
-            description='Cannot cancel booking (invalid status or past dates)',
-            examples=[
-                OpenApiExample(
-                    'Cancellation Error',
-                    value={
-                        "error": "Cannot cancel booking - check-in date has passed"
-                    }
-                )
-            ]
-        ),
-        401: OpenApiResponse(description='Authentication required'),
-        403: OpenApiResponse(description='Permission denied'),
-        404: OpenApiResponse(description='Booking not found'),
-    },
-    tags=['Bookings']
-)
-@api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def cancel_booking(request, booking_reference):
-    """Cancel a booking with email notification"""
-    try:
-        booking = get_object_or_404(
-            Booking, 
-            booking_reference=booking_reference,
-            user=request.user
-        )
-        
-        # Validate cancellation
-        serializer = BookingCancellationSerializer(
-            data=request.data,
-            context={'booking': booking}
-        )
-        serializer.is_valid(raise_exception=True)
-        
-        # Cancel booking
-        with transaction.atomic():
-            booking.cancel_booking(
-                reason=serializer.validated_data['reason'],
-                notes=serializer.validated_data.get('notes', '')
-            )
-            
-            # Send cancellation email
-            email_sent = BookingEmailService.send_booking_cancellation(booking)
-            
-            # Create history entry
-            BookingHistory.objects.create(
-                booking=booking,
-                action='cancelled',
-                description=f"Booking cancelled - {serializer.validated_data['reason']}",
-                performed_by=request.user
-            )
-        
-        return Response({
-            'message': 'Booking cancelled successfully',
-            'booking_reference': booking.booking_reference,
-            'email_notification': {
-                'sent': email_sent,
-                'recipient': booking.primary_guest_email
-            }
-        })
-        
-    except Exception as e:
-        return Response(
-            {'error': f'Failed to cancel booking: {str(e)}'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-
-@api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def check_in_booking(request, booking_reference):
-    """Check in a guest (for hotel staff)"""
-    try:
-        booking = get_object_or_404(
-            Booking,
-            booking_reference=booking_reference
-        )
-        
-        # Check if user has permission (hotel staff or admin)
-        if not (request.user.is_hotel_staff or request.user.is_admin_user):
-            return Response(
-                {'error': 'Permission denied'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        if not booking.can_check_in:
-            return Response(
-                {'error': 'Guest cannot check in at this time'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Check in guest
-        with transaction.atomic():
-            booking.check_in_guest()
-            
-            # Create history entry
-            BookingHistory.objects.create(
-                booking=booking,
-                action='checked_in',
-                description='Guest checked in',
-                performed_by=request.user
-            )
-        
-        return Response({
-            'message': 'Guest checked in successfully',
-            'booking_reference': booking.booking_reference,
-            'check_in_time': booking.check_in_time
-        })
-        
-    except Exception as e:
-        return Response(
-            {'error': f'Failed to check in guest: {str(e)}'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-
-@api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def check_out_booking(request, booking_reference):
-    """Check out a guest (for hotel staff)"""
-    try:
-        booking = get_object_or_404(
-            Booking,
-            booking_reference=booking_reference
-        )
-        
-        # Check if user has permission (hotel staff or admin)
-        if not (request.user.is_hotel_staff or request.user.is_admin_user):
-            return Response(
-                {'error': 'Permission denied'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        if not booking.can_check_out:
-            return Response(
-                {'error': 'Guest cannot check out at this time'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Check out guest
-        with transaction.atomic():
-            booking.check_out_guest()
-            
-            # Create history entry
-            BookingHistory.objects.create(
-                booking=booking,
-                action='checked_out',
-                description='Guest checked out',
-                performed_by=request.user
-            )
-        
-        return Response({
-            'message': 'Guest checked out successfully',
-            'booking_reference': booking.booking_reference,
-            'check_out_time': booking.check_out_time
-        })
-        
-    except Exception as e:
-        return Response(
-            {'error': f'Failed to check out guest: {str(e)}'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-
-@extend_schema(
-    summary="Search Available Rooms (POST)",
-    description="Search for available rooms using POST request with detailed search criteria. Hotel ID is optional.",
-    request=RoomAvailabilitySerializer,
-    examples=[
-        OpenApiExample(
-            'Search All Hotels',
-            summary='Search all hotels for available rooms',
-            description='Search across all hotels without specifying hotel_id',
-            value={
-                'check_in': '2025-08-20',
-                'check_out': '2025-08-23',
-                'guests': 2
-            }
-        ),
-        OpenApiExample(
-            'Search Specific Hotel',
-            summary='Search a specific hotel',
-            description='Search only a specific hotel using hotel_id',
-            value={
-                'check_in': '2025-08-20',
-                'check_out': '2025-08-23',
-                'guests': 2,
-                'hotel_id': '123e4567-e89b-12d3-a456-426614174000'
-            }
-        ),
-        OpenApiExample(
-            'Search with Filters',
-            summary='Search with additional filters',
-            description='Search with hotel_id, room_type_id and price filters',
-            value={
-                'check_in': '2025-08-20',
-                'check_out': '2025-08-23',
-                'guests': 2,
-                'hotel_id': '123e4567-e89b-12d3-a456-426614174000',
-                'room_type_id': '456e7890-e89b-12d3-a456-426614174001',
-                'max_price': '250.00'
-            }
-        ),
-    ]
-)
-@api_view(['POST'])
-@permission_classes([permissions.AllowAny])
-def search_rooms(request):
-    """Search for available rooms"""
-    serializer = RoomAvailabilitySerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    
-    search_params = serializer.validated_data
-    
-    try:
-        # Use the search service
-        results = HotelSearchService.search_available_rooms(
-            check_in=search_params['check_in'],
-            check_out=search_params['check_out'],
-            guests=search_params['guests'],
-            hotel_id=search_params.get('hotel_id'),
-            room_type_id=search_params.get('room_type_id'),
-            max_price=search_params.get('max_price')
-        )
-        
-        # Serialize room combinations
-        serialized_results = []
-        for hotel_result in results['results']:
-            hotel_data = {
-                'hotel': {
-                    'id': str(hotel_result['hotel'].id),
-                    'name': hotel_result['hotel'].name,
-                    'star_rating': hotel_result['hotel'].star_rating,
-                    'address': hotel_result['hotel'].full_address
+                {
+                    'success': False,
+                    'message': 'Booking is already cancelled',
+                    'booking_id': instance.id,
+                    'booking_reference': instance.booking_id
                 },
-                'available_rooms': hotel_result['available_room_count'],
-                'room_combinations': []
-            }
-            
-            # Add room combinations
-            for combination in hotel_result['room_combinations']:
-                room_data = []
-                for room in combination['rooms']:
-                    room_serializer = RoomSerializer(
-                        room, 
-                        context={'request': request}
-                    )
-                    room_data.append(room_serializer.data)
-                
-                hotel_data['room_combinations'].append({
-                    'type': combination['type'],
-                    'rooms': room_data,
-                    'total_capacity': combination['total_capacity'],
-                    'total_price': combination['total_price'],
-                    'room_count': combination['room_count']
-                })
-            
-            # Add hotel extras
-            extras_serializer = ExtraSerializer(
-                hotel_result['hotel_extras'],
-                many=True
+                status=status.HTTP_400_BAD_REQUEST
             )
-            hotel_data['available_extras'] = extras_serializer.data
-            
-            serialized_results.append(hotel_data)
         
-        return Response({
-            'results': serialized_results,
-            'search_params': results['search_params']
-        })
+        # Perform cancellation
+        self.perform_destroy(instance)
         
-    except Exception as e:
+        # Get email status from perform_destroy
+        email_sent = getattr(self, 'email_sent', False)
+        booking = getattr(self, 'booking_instance', instance)
+        
         return Response(
-            {'error': f'Search failed: {str(e)}'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-
-@api_view(['GET'])
-@permission_classes([permissions.AllowAny])
-def get_hotel_extras(request, hotel_id):
-    """Get available extras for a hotel"""
-    try:
-        hotel = get_object_or_404(Hotel, id=hotel_id, is_active=True)
-        extras = hotel.extras.filter(is_active=True)
-        
-        serializer = ExtraSerializer(extras, many=True)
-        
-        return Response({
-            'hotel': {
-                'id': str(hotel.id),
-                'name': hotel.name
+            {
+                'success': True,
+                'message': 'Booking cancelled successfully',
+                'booking_id': booking.id,
+                'booking_reference': booking.booking_id,
+                'cancellation_date': timezone.now().date().isoformat(),
+                'email_confirmation': {
+                    'sent': email_sent,
+                    'recipient': booking.guest_email if email_sent else None,
+                    'message': 'Cancellation email sent' if email_sent else 'Cancellation email not sent (booking was already inactive or email failed)'
+                }
             },
-            'extras': serializer.data
-        })
-        
-    except Exception as e:
-        return Response(
-            {'error': f'Failed to get hotel extras: {str(e)}'},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_200_OK
         )
 
 
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def get_booking_history(request, booking_reference):
-    """Get booking history for a specific booking"""
-    try:
-        booking = get_object_or_404(
-            Booking,
-            booking_reference=booking_reference,
-            user=request.user
-        )
-        
-        history = booking.history.all().order_by('-timestamp')
-        
-        history_data = []
-        for entry in history:
-            history_data.append({
-                'action': entry.get_action_display(),
-                'description': entry.description,
-                'timestamp': entry.timestamp,
-                'performed_by': entry.performed_by.get_full_name() if entry.performed_by else 'System'
-            })
-        
-        return Response({
-            'booking_reference': booking.booking_reference,
-            'history': history_data
-        })
-        
-    except Exception as e:
-        return Response(
-            {'error': f'Failed to get booking history: {str(e)}'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-
-# Staff-only views for hotel management
-class StaffBookingListAPIView(generics.ListAPIView):
-    """List all bookings for hotel staff"""
+class UserBookingListAPIView(generics.ListAPIView):
+    """
+    Get all bookings for a specific user.
+    Useful for user profiles and booking history.
+    """
     serializer_class = BookingListSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     pagination_class = BookingPagination
-    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
-    search_fields = ['booking_reference', 'primary_guest_name', 'primary_guest_email']
-    ordering_fields = ['booking_date', 'check_in', 'total_price']
-    ordering = ['-booking_date']
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ['created_at', 'check_in_date', 'status']
+    ordering = ['-created_at']
     
     def get_queryset(self):
-        """Get all bookings for hotel staff"""
-        # Check if user is hotel staff or admin
-        if not (self.request.user.is_hotel_staff or self.request.user.is_admin_user):
-            return Booking.objects.none()
-        
-        return Booking.objects.all().select_related(
-            'room__hotel', 'room__room_type', 'user'
-        ).prefetch_related(
-            'booking_extras__extra'
-        )
-
-
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def get_hotel_dashboard(request):
-    """Get hotel dashboard data for staff"""
-    # Check if user is hotel staff or admin
-    if not (request.user.is_hotel_staff or request.user.is_admin_user):
-        return Response(
-            {'error': 'Permission denied'},
-            status=status.HTTP_403_FORBIDDEN
-        )
+        """Return bookings for specific user."""
+        user_id = self.kwargs['user_id']
+        return Booking.objects.filter(
+            user_id=user_id
+        ).select_related(
+            'room', 'room__hotel', 'room__room_type'
+        ).order_by('-created_at')
     
-    try:
-        today = timezone.now().date()
-        
-        # Get today's metrics
-        todays_checkins = Booking.objects.filter(
-            check_in=today,
-            status='confirmed'
-        ).count()
-        
-        todays_checkouts = Booking.objects.filter(
-            check_out=today,
-            status='checked_in'
-        ).count()
-        
-        current_guests = Booking.objects.filter(
-            status='checked_in'
-        ).count()
-        
-        # Get upcoming bookings
-        upcoming_bookings = Booking.objects.filter(
-            check_in__gte=today,
-            status='confirmed'
-        ).order_by('check_in')[:10]
-        
-        upcoming_serializer = BookingListSerializer(upcoming_bookings, many=True)
-        
-        return Response({
-            'todays_metrics': {
-                'checkins': todays_checkins,
-                'checkouts': todays_checkouts,
-                'current_guests': current_guests
-            },
-            'upcoming_bookings': upcoming_serializer.data
-        })
-        
-    except Exception as e:
-        return Response(
-            {'error': f'Failed to get dashboard data: {str(e)}'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+    def list(self, request, *args, **kwargs):
+        """Enhanced list response with user info."""
+        try:
+            user = User.objects.get(id=self.kwargs['user_id'])
+            response = super().list(request, *args, **kwargs)
+            response.data['user_info'] = {
+                'id': user.id,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email
+            }
+            return response
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
-# ===== MISSING VIEWS IMPLEMENTATION =====
-
-class BookingSearchAPIView(generics.ListAPIView):
-    """Search bookings with various filters"""
-    serializer_class = BookingListSerializer
-    permission_classes = [permissions.IsAuthenticated]
+class RoomBookingListAPIView(generics.ListAPIView):
+    """
+    Get all bookings for a specific room.
+    Useful for room management and availability checking.
+    """
+    serializer_class = BookingQuickSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = BookingPagination
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ['check_in_date', 'created_at', 'status']
+    ordering = ['check_in_date']
     
     def get_queryset(self):
-        queryset = Booking.objects.filter(user=self.request.user)
+        """Return bookings for specific room."""
+        room_id = self.kwargs['room_id']
+        queryset = Booking.objects.filter(
+            room_id=room_id
+        ).select_related('user')
         
-        # Filter by status
+        # Filter by status if provided
         status_filter = self.request.query_params.get('status')
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         
-        # Filter by date range
+        # Filter by date range if provided
         from_date = self.request.query_params.get('from_date')
         to_date = self.request.query_params.get('to_date')
-        
         if from_date:
-            queryset = queryset.filter(check_in__gte=from_date)
+            queryset = queryset.filter(check_out_date__gte=from_date)
         if to_date:
-            queryset = queryset.filter(check_out__lte=to_date)
-        
-        return queryset.order_by('-created_at')
-
-
-class RoomSearchAPIView(generics.GenericAPIView):
-    """Search available rooms"""
-    permission_classes = [permissions.AllowAny]
+            queryset = queryset.filter(check_in_date__lte=to_date)
+            
+        return queryset.order_by('check_in_date')
     
-    def get(self, request):
+    def list(self, request, *args, **kwargs):
+        """Enhanced list response with room info and availability stats."""
         try:
-            check_in = request.query_params.get('checkin')
-            check_out = request.query_params.get('checkout')
-            guests = int(request.query_params.get('guests', 1))
-            location = request.query_params.get('location')
+            room = Room.objects.get(id=self.kwargs['room_id'])
+            response = super().list(request, *args, **kwargs)
             
-            if not check_in or not check_out:
-                return Response(
-                    {'error': 'checkin and checkout dates are required'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Get available rooms using existing service
-            available_rooms = RoomAvailabilityService.search_available_rooms(
-                check_in_date=check_in,
-                check_out_date=check_out,
-                guests=guests,
-                location=location
-            )
-            
-            return Response({
-                'search_criteria': {
-                    'check_in': check_in,
-                    'check_out': check_out,
-                    'guests': guests,
-                    'location': location
-                },
-                'results': available_rooms,
-                'total_found': len(available_rooms)
-            })
-            
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class AvailabilitySearchAPIView(RoomSearchAPIView):
-    """Alias for room search"""
-    pass
-
-
-class HotelRoomSearchAPIView(generics.GenericAPIView):
-    """Search rooms in a specific hotel"""
-    permission_classes = [permissions.AllowAny]
-    
-    def get(self, request, hotel_id):
-        try:
-            check_in = request.query_params.get('checkin')
-            check_out = request.query_params.get('checkout')
-            guests = int(request.query_params.get('guests', 1))
-            
-            if not check_in or not check_out:
-                return Response(
-                    {'error': 'checkin and checkout dates are required'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Get available rooms for specific hotel
-            available_rooms = RoomAvailabilityService.get_available_rooms(
-                hotel_id=hotel_id,
-                check_in_date=check_in,
-                check_out_date=check_out,
-                guests=guests
-            )
-            
-            return Response({
-                'hotel_id': hotel_id,
-                'search_criteria': {
-                    'check_in': check_in,
-                    'check_out': check_out,
-                    'guests': guests
-                },
-                'available_rooms': available_rooms,
-                'total_available': len(available_rooms)
-            })
-            
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class BookingQuoteAPIView(generics.GenericAPIView):
-    """Get booking quote without creating booking"""
-    permission_classes = [permissions.AllowAny]
-    
-    def post(self, request):
-        try:
-            room_id = request.data.get('room_id')
-            check_in = request.data.get('check_in_date')
-            check_out = request.data.get('check_out_date')
-            guests = int(request.data.get('guests', 1))
-            extras = request.data.get('extras', [])
-            
-            # Calculate pricing
-            room = Room.objects.get(id=room_id)
-            
-            # Basic room rate calculation
-            from datetime import datetime
-            check_in_date = datetime.strptime(check_in, '%Y-%m-%d').date()
-            check_out_date = datetime.strptime(check_out, '%Y-%m-%d').date()
-            nights = (check_out_date - check_in_date).days
-            
-            room_total = float(room.room_type.base_price) * nights
-            
-            # Calculate extras
-            extras_total = 0
-            if extras:
-                extra_objects = Extra.objects.filter(id__in=extras)
-                extras_total = sum(float(extra.price) for extra in extra_objects)
-            
-            subtotal = room_total + extras_total
-            taxes = subtotal * 0.12  # 12% tax
-            total = subtotal + taxes
-            
-            return Response({
-                'quote_id': f'QUOTE-{timezone.now().strftime("%Y%m%d%H%M%S")}',
-                'room': {
-                    'id': str(room.id),
-                    'name': room.room_type.name,
-                    'hotel': room.hotel.name
-                },
-                'dates': {
-                    'check_in': check_in,
-                    'check_out': check_out,
-                    'nights': nights
-                },
-                'pricing': {
-                    'room_rate_per_night': float(room.room_type.base_price),
-                    'room_total': room_total,
-                    'extras_total': extras_total,
-                    'subtotal': subtotal,
-                    'taxes': taxes,
-                    'total': total,
-                    'currency': 'USD'
-                },
-                'policies': {
-                    'cancellation_policy': room.hotel.cancellation_policy,
-                    'payment_required': 'Credit card required to hold reservation'
-                }
-            })
-            
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class BookingDraftAPIView(generics.GenericAPIView):
-    """Save booking as draft"""
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def post(self, request):
-        # In a real implementation, you'd save to a BookingDraft model
-        draft_id = f'DRAFT-{timezone.now().strftime("%Y%m%d%H%M%S")}'
-        
-        return Response({
-            'draft_id': draft_id,
-            'message': 'Booking saved as draft',
-            'expires_at': (timezone.now() + timezone.timedelta(hours=24)).isoformat()
-        })
-
-
-class BookingCancelAPIView(generics.GenericAPIView):
-    """Cancel a booking"""
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def post(self, request, booking_reference):
-        try:
-            booking = Booking.objects.get(
-                booking_reference=booking_reference,
-                user=request.user
-            )
-            
-            if booking.status == 'cancelled':
-                return Response(
-                    {'error': 'Booking is already cancelled'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Cancel the booking
-            booking.status = 'cancelled'
-            booking.cancellation_date = timezone.now()
-            booking.cancellation_reason = request.data.get('reason', 'Guest cancellation')
-            booking.save()
-            
-            # Create history record
-            BookingHistory.objects.create(
-                booking=booking,
-                action='cancelled',
-                description=f'Cancelled by guest: {booking.cancellation_reason}',
-                performed_by=request.user
-            )
-            
-            return Response({
-                'message': 'Booking cancelled successfully',
-                'booking_reference': booking_reference,
-                'cancellation_date': booking.cancellation_date.isoformat()
-            })
-            
-        except Booking.DoesNotExist:
-            return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
-class BookingConfirmAPIView(generics.GenericAPIView):
-    """Confirm a booking"""
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def post(self, request, booking_reference):
-        try:
-            booking = Booking.objects.get(
-                booking_reference=booking_reference,
-                user=request.user
-            )
-            
-            if booking.status == 'confirmed':
-                return Response(
-                    {'message': 'Booking is already confirmed'},
-                    status=status.HTTP_200_OK
-                )
-            
-            booking.status = 'confirmed'
-            booking.save()
-            
-            return Response({
-                'message': 'Booking confirmed successfully',
-                'booking_reference': booking_reference
-            })
-            
-        except Booking.DoesNotExist:
-            return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
-class BookingModifyAPIView(generics.GenericAPIView):
-    """Modify booking details"""
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def post(self, request, booking_reference):
-        try:
-            booking = Booking.objects.get(
-                booking_reference=booking_reference,
-                user=request.user
-            )
-            
-            # Create modification request (in real implementation)
-            modification_data = request.data
-            
-            return Response({
-                'message': 'Modification request submitted',
-                'booking_reference': booking_reference,
-                'modification_id': f'MOD-{timezone.now().strftime("%Y%m%d%H%M%S")}',
-                'status': 'pending_approval'
-            })
-            
-        except Booking.DoesNotExist:
-            return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
-class BookingTimelineAPIView(generics.GenericAPIView):
-    """Get booking timeline/history"""
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get(self, request, booking_reference):
-        try:
-            booking = Booking.objects.get(
-                booking_reference=booking_reference,
-                user=request.user
-            )
-            
-            # Get booking history
-            history = BookingHistory.objects.filter(booking=booking).order_by('created_at')
-            
-            timeline = [
-                {
-                    'id': h.id,
-                    'status': h.status,
-                    'timestamp': h.created_at.isoformat(),
-                    'notes': h.notes,
-                    'user': h.user.get_full_name() if h.user else 'System'
-                } for h in history
-            ]
-            
-            return Response({
-                'booking_reference': booking_reference,
-                'timeline': timeline
-            })
-            
-        except Booking.DoesNotExist:
-            return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
-class BookingInvoiceAPIView(generics.GenericAPIView):
-    """Get booking invoice"""
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get(self, request, booking_reference):
-        try:
-            booking = Booking.objects.get(
-                booking_reference=booking_reference,
-                user=request.user
-            )
-            
-            invoice_data = {
-                'invoice_number': f'INV-{booking.booking_reference}',
-                'booking_reference': booking_reference,
-                'guest_name': f'{booking.primary_guest_name}',
-                'hotel': {
-                    'name': booking.room.hotel.name,
-                    'address': booking.room.hotel.full_address
-                },
-                'room': {
-                    'type': booking.room.room_type.name,
-                    'nights': booking.total_nights,
-                    'rate_per_night': float(booking.room.room_type.base_price)
-                },
-                'totals': {
-                    'room_charges': float(booking.room_charges),
-                    'extras': float(booking.extras_total),
-                    'taxes': float(booking.taxes),
-                    'total': float(booking.total_price)
-                },
-                'dates': {
-                    'check_in': booking.check_in.isoformat(),
-                    'check_out': booking.check_out.isoformat(),
-                    'booking_date': booking.created_at.date().isoformat()
-                }
+            # Add room information
+            response.data['room_info'] = {
+                'id': room.id,
+                'name': room.name,
+                'room_number': room.room_number,
+                'room_type': room.room_type.name,
+                'hotel': room.hotel.name,
+                'capacity': room.capacity,
+                'price_per_night': str(room.price_per_night)
             }
             
-            return Response(invoice_data)
+            # Add booking statistics
+            today = timezone.now().date()
+            total_bookings = self.get_queryset().count()
+            upcoming_bookings = self.get_queryset().filter(
+                check_in_date__gte=today,
+                status__in=['confirmed', 'pending']
+            ).count()
             
-        except Booking.DoesNotExist:
-            return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
-class BookingReceiptAPIView(BookingInvoiceAPIView):
-    """Get booking receipt (alias for invoice)"""
-    pass
-
-
-class CheckInAPIView(generics.GenericAPIView):
-    """Check-in a guest"""
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def post(self, request, booking_reference):
-        try:
-            booking = Booking.objects.get(booking_reference=booking_reference)
+            response.data['stats'] = {
+                'total_bookings': total_bookings,
+                'upcoming_bookings': upcoming_bookings,
+                'is_currently_occupied': self.get_queryset().filter(
+                    check_in_date__lte=today,
+                    check_out_date__gte=today,
+                    status='confirmed'
+                ).exists()
+            }
             
-            if booking.status != 'confirmed':
-                return Response(
-                    {'error': 'Booking must be confirmed before check-in'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            booking.status = 'checked_in'
-            booking.actual_check_in = timezone.now()
-            booking.save()
-            
-            return Response({
-                'message': 'Check-in successful',
-                'booking_reference': booking_reference,
-                'check_in_time': booking.actual_check_in.isoformat()
-            })
-            
-        except Booking.DoesNotExist:
-            return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
-class CheckOutAPIView(generics.GenericAPIView):
-    """Check-out a guest"""
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def post(self, request, booking_reference):
-        try:
-            booking = Booking.objects.get(booking_reference=booking_reference)
-            
-            if booking.status != 'checked_in':
-                return Response(
-                    {'error': 'Guest must be checked in before check-out'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            booking.status = 'completed'
-            booking.actual_check_out = timezone.now()
-            booking.save()
-            
-            return Response({
-                'message': 'Check-out successful',
-                'booking_reference': booking_reference,
-                'check_out_time': booking.actual_check_out.isoformat()
-            })
-            
-        except Booking.DoesNotExist:
-            return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
-class StaffDashboardAPIView(generics.GenericAPIView):
-    """Staff dashboard with key metrics"""
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get(self, request):
-        # Alias for existing get_hotel_dashboard function
-        return get_hotel_dashboard(request)
-
-
-class TodayBookingsAPIView(generics.ListAPIView):
-    """Get today's bookings"""
-    serializer_class = BookingListSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
-        today = timezone.now().date()
-        return Booking.objects.filter(
-            Q(check_in=today) | Q(check_out=today)
-        ).order_by('check_in')
-
-
-class TodayArrivalsAPIView(generics.ListAPIView):
-    """Get today's arrivals"""
-    serializer_class = BookingListSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
-        today = timezone.now().date()
-        return Booking.objects.filter(
-            check_in=today,
-            status='confirmed'
-        ).order_by('check_in')
-
-
-class TodayDeparturesAPIView(generics.ListAPIView):
-    """Get today's departures"""
-    serializer_class = BookingListSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
-        today = timezone.now().date()
-        return Booking.objects.filter(
-            check_out=today,
-            status='checked_in'
-        ).order_by('check_out')
+            return response
+        except Room.DoesNotExist:
+            return Response(
+                {'error': 'Room not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )

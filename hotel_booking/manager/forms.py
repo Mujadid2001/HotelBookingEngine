@@ -1,7 +1,6 @@
 from django import forms
 from core.models import Hotel, Room, RoomType, Extra, SeasonalPricing, RoomAmenity, RoomImage, RoomTypeAmenity
-from bookings.models import Booking, BookingExtra, BookingGuest
-from bookings.models import BookingHistory
+from bookings.models import Booking
 from core.models import RoomAmenity, RoomImage, RoomTypeAmenity, SeasonalPricing
 from offers.models import Offer, OfferCategory, OfferHighlight, OfferImage
 
@@ -154,11 +153,22 @@ class SeasonalPricingForm(BaseForm):
 
 class BookingForm(BaseForm):
     placeholder_mapping = {
-        'primary_guest_name': 'e.g., John Smith',
-        'primary_guest_email': 'e.g., john.smith@email.com',
-        'primary_guest_phone': 'e.g., +1-555-0123',
+        'guest_first_name': 'e.g., John',
+        'guest_last_name': 'e.g., Smith',
+        'guest_email': 'e.g., john.smith@email.com',
+        'guest_phone': 'e.g., +1-555-0123',
+        'guest_country': 'e.g., United States',
+        'guest_address': 'e.g., 123 Main Street, Apt 4B',
+        'guest_city': 'e.g., New York',
+        'guest_postal_code': 'e.g., 10001',
+        'guest_passport_number': 'e.g., AB123456789 (optional)',
+        'room_rate': 'e.g., 250.00',
+        'tax_amount': 'e.g., 37.50',
+        'discount_amount': 'e.g., 25.00',
+        'discount_type': 'e.g., Early Bird Discount',
         'special_requests': 'Any special requests or notes',
-        'guests': 'e.g., 2',
+        'adults': 'e.g., 2',
+        'children': 'e.g., 1',
     }
 
     def __init__(self, *args, **kwargs):
@@ -168,70 +178,69 @@ class BookingForm(BaseForm):
             self.fields['user'].queryset = self.fields['user'].queryset.exclude(
                 user_type__in=['staff', 'admin']
             ).exclude(is_superuser=True)
+        
+        # Set room field to show room info clearly
+        if 'room' in self.fields:
+            self.fields['room'].queryset = self.fields['room'].queryset.select_related(
+                'hotel', 'room_type'
+            )
+            self.fields['room'].label_from_instance = lambda obj: f"{obj.hotel.name} - {obj.room_type.name} #{obj.room_number}"
 
     class Meta:
         model = Booking
         fields = [
-            'user', 'room', 'check_in', 'check_out', 'guests',
-            'status', 'payment_status', 'primary_guest_name',
-            'primary_guest_email', 'primary_guest_phone', 'special_requests',
+            # Core booking info
+            'user', 'hotel', 'room', 'status', 'payment_status',
+            
+            # Guest information
+            'guest_first_name', 'guest_last_name', 'guest_email', 'guest_phone',
+            'guest_passport_number',
+            
+            # Address information
+            'guest_country', 'guest_address', 'guest_city', 'guest_postal_code',
+            
+            # Dates and time
+            'check_in_date', 'check_out_date', 'check_in_time', 'check_out_time',
+            
+            # Guest count
+            'adults', 'children',
+            
+            # Pricing
+            'room_rate', 'tax_amount', 'discount_amount', 'discount_type',
+            
+            # Additional
+            'special_requests',
         ]
         widgets = {
-            'check_in': forms.DateInput(attrs={'type': 'date', 'placeholder': 'Select check-in date'}),
-            'check_out': forms.DateInput(attrs={'type': 'date', 'placeholder': 'Select check-out date'}),
-            'special_requests': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Dietary restrictions, accessibility needs, etc.'}),
+            'check_in_date': forms.DateInput(attrs={'type': 'date', 'placeholder': 'Select check-in date'}),
+            'check_out_date': forms.DateInput(attrs={'type': 'date', 'placeholder': 'Select check-out date'}),
+            'check_in_time': forms.TimeInput(attrs={'type': 'time', 'placeholder': '15:00'}),
+            'check_out_time': forms.TimeInput(attrs={'type': 'time', 'placeholder': '11:00'}),
+            'guest_address': forms.Textarea(attrs={'rows': 2, 'placeholder': 'Full address including street, apartment/unit number'}),
+            'special_requests': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Dietary restrictions, accessibility needs, early check-in, etc.'}),
+            'room_rate': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
+            'tax_amount': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
+            'discount_amount': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
         }
 
+    def clean(self):
+        cleaned_data = super().clean()
+        check_in_date = cleaned_data.get('check_in_date')
+        check_out_date = cleaned_data.get('check_out_date')
+        room = cleaned_data.get('room')
+        adults = cleaned_data.get('adults', 0)
+        children = cleaned_data.get('children', 0)
 
-class BookingExtraForm(BaseForm):
-    placeholder_mapping = {
-        'quantity': 'e.g., 2',
-        'unit_price': 'e.g., 15.00',
-        'total_price': 'e.g., 30.00',
-    }
-    
-    class Meta:
-        model = BookingExtra
-        fields = '__all__'
+        # Validate dates
+        if check_in_date and check_out_date:
+            if check_in_date >= check_out_date:
+                raise forms.ValidationError('Check-out date must be after check-in date.')
 
+        # Validate room capacity
+        if room and (adults + children) > room.max_occupancy:
+            raise forms.ValidationError(f'Total guests ({adults + children}) exceed room capacity ({room.max_occupancy}).')
 
-class BookingGuestForm(BaseForm):
-    placeholder_mapping = {
-        'first_name': 'e.g., Jane',
-        'last_name': 'e.g., Doe',
-        'email': 'e.g., jane.doe@email.com',
-        'phone': 'e.g., +1-555-0123',
-        'date_of_birth': 'YYYY-MM-DD format',
-    }
-    
-    class Meta:
-        model = BookingGuest
-        fields = '__all__'
-        widgets = {
-            'date_of_birth': forms.DateInput(attrs={'type': 'date', 'placeholder': 'Select date of birth'}),
-        }
-
-
-class BookingHistoryForm(BaseForm):
-    placeholder_mapping = {
-        'action': 'e.g., Check-in, Payment, Status Change',
-        'description': 'Describe the action taken',
-    }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Filter performed_by field to exclude managers and admins - only normal users
-        if 'performed_by' in self.fields:
-            self.fields['performed_by'].queryset = self.fields['performed_by'].queryset.exclude(
-                user_type__in=['staff', 'admin']
-            ).exclude(is_superuser=True)
-
-    class Meta:
-        model = BookingHistory
-        fields = ['booking', 'action', 'description', 'performed_by']
-        widgets = {
-            'description': forms.Textarea(attrs={'rows': 3}),
-        }
+        return cleaned_data
 
 
 class RoomAmenityForm(BaseForm):

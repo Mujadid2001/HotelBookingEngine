@@ -2,9 +2,9 @@
 {% load core_tags %}
 {% load status_color %}
 
-{% block title %}Booking Details - {{ object.booking_reference }}{% endblock %}
+{% block title %}Booking Details - {{ object.booking_id }}{% endblock %}
 
-{% block page_title %}Booking Details - {{ object.booking_reference }}{% endblock %}
+{% block page_title %}Booking Details - {{ object.booking_id }}{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -13,7 +13,7 @@
       <div class="card-header">
         <h5 class="card-title mb-0">
           <i class="fa-solid fa-calendar-check me-2"></i>
-          Booking #{{ object.booking_reference }}
+          Booking #{{ object.booking_id }}
           <span class="badge bg-{{ object.status|status_color }} ms-2">{{ object.get_status_display }}</span>
         </h5>
         <div class="btn-group">
@@ -41,13 +41,13 @@
               <i class="fa-solid fa-user me-2"></i>Guest Information
             </h6>
             <dl class="row">
-              <dt class="col-sm-5">Primary Guest:</dt>
-              <dd class="col-sm-7">{{ object.primary_guest_name|default:"N/A" }}</dd>
+              <dt class="col-sm-5">Guest Name:</dt>
+              <dd class="col-sm-7">{{ guest_full_name|default:"N/A" }}</dd>
               
               <dt class="col-sm-5">Email:</dt>
               <dd class="col-sm-7">
-                {% if object.primary_guest_email %}
-                  <a href="mailto:{{ object.primary_guest_email }}">{{ object.primary_guest_email }}</a>
+                {% if object.guest_email %}
+                  <a href="mailto:{{ object.guest_email }}">{{ object.guest_email }}</a>
                 {% else %}
                   N/A
                 {% endif %}
@@ -55,12 +55,23 @@
               
               <dt class="col-sm-5">Phone:</dt>
               <dd class="col-sm-7">
-                {% if object.primary_guest_phone %}
-                  <a href="tel:{{ object.primary_guest_phone }}">{{ object.primary_guest_phone }}</a>
+                {% if object.guest_phone %}
+                  <a href="tel:{{ object.guest_phone }}">{{ object.guest_phone }}</a>
                 {% else %}
                   N/A
                 {% endif %}
               </dd>
+              
+              <dt class="col-sm-5">Country:</dt>
+              <dd class="col-sm-7">{{ object.guest_country|default:"N/A" }}</dd>
+              
+              <dt class="col-sm-5">Address:</dt>
+              <dd class="col-sm-7">{{ guest_address_formatted|default:"N/A" }}</dd>
+              
+              {% if object.guest_passport_number %}
+              <dt class="col-sm-5">Passport:</dt>
+              <dd class="col-sm-7">{{ object.guest_passport_number }}</dd>
+              {% endif %}
               
               <dt class="col-sm-5">User Account:</dt>
               <dd class="col-sm-7">
@@ -72,8 +83,8 @@
                 {% endif %}
               </dd>
               
-              <dt class="col-sm-5">Number of Guests:</dt>
-              <dd class="col-sm-7">{{ object.guests|default:"N/A" }}</dd>
+              <dt class="col-sm-5">Guests:</dt>
+              <dd class="col-sm-7">{{ object.adults }} adults{% if object.children %}, {{ object.children }} children{% endif %} ({{ total_guests }} total)</dd>
             </dl>
           </div>
           
@@ -84,33 +95,28 @@
             </h6>
             <dl class="row">
               <dt class="col-sm-5">Check-in:</dt>
-              <dd class="col-sm-7">{{ object.check_in|date:"l, F j, Y" }}</dd>
+              <dd class="col-sm-7">{{ object.check_in_date|date:"l, F j, Y" }}</dd>
               
               <dt class="col-sm-5">Check-out:</dt>
-              <dd class="col-sm-7">{{ object.check_out|date:"l, F j, Y" }}</dd>
+              <dd class="col-sm-7">{{ object.check_out_date|date:"l, F j, Y" }}</dd>
               
               <dt class="col-sm-5">Number of Nights:</dt>
               <dd class="col-sm-7">{{ object.nights }}</dd>
               
-              <dt class="col-sm-5">Booking Date:</dt>
-              <dd class="col-sm-7">{{ object.booking_date|date:"F j, Y g:i A" }}</dd>
+              <dt class="col-sm-5">Nights:</dt>
+              <dd class="col-sm-7">{{ object.nights }}</dd>
               
-              <dt class="col-sm-5">Source:</dt>
-              <dd class="col-sm-7">{{ object.get_booking_source_display }}</dd>
-              
-              {% if object.confirmation_date %}
-              <dt class="col-sm-5">Confirmed:</dt>
-              <dd class="col-sm-7">{{ object.confirmation_date|date:"F j, Y g:i A" }}</dd>
-              {% endif %}
+              <dt class="col-sm-5">Created:</dt>
+              <dd class="col-sm-7">{{ object.created_at|date:"F j, Y g:i A" }}</dd>
               
               {% if object.check_in_time %}
-              <dt class="col-sm-5">Checked In:</dt>
-              <dd class="col-sm-7">{{ object.check_in_time|date:"F j, Y g:i A" }}</dd>
+              <dt class="col-sm-5">Check-in Time:</dt>
+              <dd class="col-sm-7">{{ object.check_in_time|time:"g:i A" }}</dd>
               {% endif %}
               
               {% if object.check_out_time %}
-              <dt class="col-sm-5">Checked Out:</dt>
-              <dd class="col-sm-7">{{ object.check_out_time|date:"F j, Y g:i A" }}</dd>
+              <dt class="col-sm-5">Check-out Time:</dt>
+              <dd class="col-sm-7">{{ object.check_out_time|time:"g:i A" }}</dd>
               {% endif %}
             </dl>
           </div>
@@ -160,21 +166,26 @@
               <i class="fa-solid fa-dollar-sign me-2"></i>Pricing & Payment
             </h6>
             <dl class="row">
-              <dt class="col-sm-6">Room Price:</dt>
-              <dd class="col-sm-6">${{ object.room_price|floatformat:2 }}</dd>
+              <dt class="col-sm-6">Room Rate (per night):</dt>
+              <dd class="col-sm-6">${{ object.room_rate|floatformat:2 }}</dd>
               
-              <dt class="col-sm-6">Extras Price:</dt>
-              <dd class="col-sm-6">${{ object.extras_price|floatformat:2 }}</dd>
+              <dt class="col-sm-6">Subtotal ({{ object.nights }} nights):</dt>
+              <dd class="col-sm-6">${{ object.subtotal|floatformat:2 }}</dd>
+              
+              {% if object.discount_amount %}
+              <dt class="col-sm-6">Discount{% if object.discount_type %} ({{ object.discount_type }}){% endif %}:</dt>
+              <dd class="col-sm-6 text-success">-${{ object.discount_amount|floatformat:2 }}{% if discount_percentage %} ({{ discount_percentage }}%){% endif %}</dd>
+              {% endif %}
               
               <dt class="col-sm-6">Tax Amount:</dt>
-              <dd class="col-sm-6">${{ object.tax_amount|floatformat:2 }}</dd>
+              <dd class="col-sm-6">${{ object.tax_amount|floatformat:2 }}{% if tax_percentage %} ({{ tax_percentage }}%){% endif %}</dd>
               
-              <dt class="col-sm-6"><strong>Total Price:</strong></dt>
-              <dd class="col-sm-6"><strong>${{ object.total_price|floatformat:2 }}</strong></dd>
+              <dt class="col-sm-6"><strong>Total Amount:</strong></dt>
+              <dd class="col-sm-6"><strong>${{ object.total_amount|floatformat:2 }}</strong></dd>
               
               <dt class="col-sm-6">Payment Status:</dt>
               <dd class="col-sm-6">
-                <span class="badge bg-{% if object.payment_status == 'paid' %}success{% elif object.payment_status == 'partial' %}warning{% elif object.payment_status == 'failed' %}danger{% else %}secondary{% endif %}">
+                <span class="badge bg-{% if object.payment_status == 'paid' %}success{% elif object.payment_status == 'refunded' %}info{% else %}secondary{% endif %}">
                   {{ object.get_payment_status_display }}
                 </span>
               </dd>
@@ -209,102 +220,19 @@
           </div>
         </div>
         
-        <!-- Booking Extras -->
-        {% if booking_extras %}
-        <div class="row">
-          <div class="col-12 mb-4">
-            <h6 class="border-bottom pb-2 mb-3">
-              <i class="fa-solid fa-plus-square me-2"></i>Booking Extras
-            </h6>
-            <div class="table-responsive">
-              <table class="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Extra</th>
-                    <th>Quantity</th>
-                    <th>Unit Price</th>
-                    <th>Total Price</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for extra in booking_extras %}
-                  <tr>
-                    <td>{{ extra.extra.name }}</td>
-                    <td>{{ extra.quantity }}</td>
-                    <td>${{ extra.unit_price|floatformat:2 }}</td>
-                    <td>${{ extra.total_price|floatformat:2 }}</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        {% endif %}
-        
-        <!-- Additional Guests -->
-        {% if booking_guests %}
-        <div class="row">
-          <div class="col-12 mb-4">
-            <h6 class="border-bottom pb-2 mb-3">
-              <i class="fa-solid fa-users me-2"></i>Additional Guests
-            </h6>
-            <div class="table-responsive">
-              <table class="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Age Group</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for guest in booking_guests %}
-                  <tr>
-                    <td>{{ guest.full_name }}</td>
-                    <td>{{ guest.get_age_group_display }}</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        {% endif %}
-        
         <!-- Special Requests & Notes -->
-        {% if object.special_requests or object.internal_notes or object.cancellation_notes %}
+        {% if object.special_requests %}
         <div class="row">
           <div class="col-12">
             <h6 class="border-bottom pb-2 mb-3">
-              <i class="fa-solid fa-note-sticky me-2"></i>Notes & Special Requests
+              <i class="fa-solid fa-note-sticky me-2"></i>Special Requests
             </h6>
             
-            {% if object.special_requests %}
             <div class="mb-3">
-              <strong>Special Requests:</strong>
-              <div class="bg-light p-3 rounded mt-2">
+              <div class="bg-light p-3 rounded">
                 {{ object.special_requests|linebreaks }}
               </div>
             </div>
-            {% endif %}
-            
-            {% if object.internal_notes %}
-            <div class="mb-3">
-              <strong>Internal Notes:</strong>
-              <div class="bg-warning bg-opacity-10 p-3 rounded mt-2 border border-warning border-opacity-25">
-                {{ object.internal_notes|linebreaks }}
-              </div>
-            </div>
-            {% endif %}
-            
-            {% if object.cancellation_notes %}
-            <div class="mb-3">
-              <strong>Cancellation Notes:</strong>
-              <div class="bg-danger bg-opacity-10 p-3 rounded mt-2 border border-danger border-opacity-25">
-                {{ object.cancellation_notes|linebreaks }}
-              </div>
-            </div>
-            {% endif %}
           </div>
         </div>
         {% endif %}

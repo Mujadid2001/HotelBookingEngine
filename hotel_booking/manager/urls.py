@@ -11,15 +11,17 @@ urlpatterns = [
     # Hotels
     path('hotels/', views_cbv.HotelListView.as_view(), name='hotels'),
     path('hotels/add/', views_cbv.HotelCreateView.as_view(), name='hotel_add'),
+    
     path('hotels/<uuid:pk>/edit/', views_cbv.HotelUpdateView.as_view(), name='hotel_edit'),
     path('hotels/<uuid:pk>/delete/', views_cbv.HotelDeleteView.as_view(), name='hotel_delete'),
 
     # Bookings
     path('bookings/', views_cbv.BookingListView.as_view(), name='bookings'),
     path('bookings/add/', views_cbv.BookingCreateView.as_view(), name='booking_add'),
-    path('bookings/<uuid:pk>/', views_cbv.BookingDetailView.as_view(), name='booking_detail'),
-    path('bookings/<uuid:pk>/edit/', views_cbv.BookingUpdateView.as_view(), name='booking_edit'),
-    path('bookings/<uuid:pk>/delete/', views_cbv.BookingDeleteView.as_view(), name='booking_delete'),
+    path('bookings/<int:pk>/', views_cbv.BookingDetailView.as_view(), name='booking_detail'),
+    path('bookings/<int:pk>/edit/', views_cbv.BookingUpdateView.as_view(), name='booking_edit'),
+    path('bookings/<int:pk>/delete/', views_cbv.BookingDeleteView.as_view(), name='booking_delete'),
+    path('bookings/export/', views_cbv.BookingExportView.as_view(), name='booking_export'),
     # Room types
     path('roomtypes/', views_cbv.RoomTypeListView.as_view(), name='roomtypes'),
     path('roomtypes/add/', views_cbv.RoomTypeCreateView.as_view(), name='roomtype_add'),
@@ -37,27 +39,6 @@ urlpatterns = [
     path('extras/add/', views_cbv.ExtraCreateView.as_view(), name='extra_add'),
     path('extras/<uuid:pk>/edit/', views_cbv.ExtraUpdateView.as_view(), name='extra_edit'),
     path('extras/<uuid:pk>/delete/', views_cbv.ExtraDeleteView.as_view(), name='extra_delete'),
-    # Booking extras
-    path('booking-extras/', views_cbv.BookingExtraListView.as_view(), name='bookingextras'),
-    path('booking-extras/add/', views_cbv.BookingExtraCreateView.as_view(), name='bookingextra_add'),
-    path('booking-extras/<uuid:pk>/edit/', views_cbv.BookingExtraUpdateView.as_view(), name='bookingextra_edit'),
-    path('booking-extras/<uuid:pk>/delete/', views_cbv.BookingExtraDeleteView.as_view(), name='bookingextra_delete'),
-    path('booking-extras/export/', views_cbv.BookingExtraExportView.as_view(), name='bookingextra_export'),
-    path('booking-extras/bulk-delete/', views_cbv.BookingExtraListView.as_view(), name='bookingextra_bulk_delete'),
-
-    # Booking guests
-    path('booking-guests/', views_cbv.BookingGuestListView.as_view(), name='bookingguests'),
-    path('booking-guests/add/', views_cbv.BookingGuestCreateView.as_view(), name='bookingguest_add'),
-    path('booking-guests/<uuid:pk>/edit/', views_cbv.BookingGuestUpdateView.as_view(), name='bookingguest_edit'),
-    path('booking-guests/<uuid:pk>/delete/', views_cbv.BookingGuestDeleteView.as_view(), name='bookingguest_delete'),
-    path('booking-guests/bulk-delete/', views_cbv.BookingGuestListView.as_view(), name='bookingguest_bulk_delete'),
-
-    # Booking histories
-    path('booking-histories/', views_cbv.BookingHistoryListView.as_view(), name='bookinghistories'),
-    path('booking-histories/add/', views_cbv.BookingHistoryCreateView.as_view(), name='bookinghistory_add'),
-    path('booking-histories/<uuid:pk>/edit/', views_cbv.BookingHistoryUpdateView.as_view(), name='bookinghistory_edit'),
-    path('booking-histories/<uuid:pk>/delete/', views_cbv.BookingHistoryDeleteView.as_view(), name='bookinghistory_delete'),
-    path('booking-histories/bulk-delete/', views_cbv.BookingHistoryListView.as_view(), name='bookinghistory_bulk_delete'),
 
     # Room amenities
     path('room-amenities/', views_cbv.RoomAmenityListView.as_view(), name='roomamenities'),
