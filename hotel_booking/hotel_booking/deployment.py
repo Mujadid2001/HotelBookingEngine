@@ -3,9 +3,10 @@
 from .settings import *
 import os
 
-# Security middleware configuration for production
+# Security middleware configuration with WhiteNoise for static file serving
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Static file serving
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -14,6 +15,10 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# WhiteNoise configuration for efficient static file serving
+WHITENOISE_COMPRESS_OFFLINE = True
+WHITENOISE_COMPRESSION_QUALITY = 80
 
 
 # --- Production-specific overrides ---
@@ -39,6 +44,15 @@ DATABASES = {
         }
     }
 }
+
+# Static files configuration
+STATIC_URL = '/static/'
+STATIC_ROOT = '/app/hotel_booking/staticfiles'
+STATICFILES_DIRS = ['/app/hotel_booking/manager/static'] if DEBUG else []
+
+# Media files configuration
+MEDIA_URL = '/media/'
+MEDIA_ROOT = '/app/media'
 
 # Email configuration for production
 EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')

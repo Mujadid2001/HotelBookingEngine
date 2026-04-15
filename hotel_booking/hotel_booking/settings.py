@@ -36,6 +36,8 @@ EXTERNAL_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
+    'django_celery_beat',
+    'django_celery_results',
     'accounts',
     'bookings',
     'core',
@@ -77,9 +79,62 @@ TEMPLATES = [
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME', default='hotelMaarDB'),
+        'USER': config('DB_USER', default='hotelapi_user'),
+        'PASSWORD': config('DB_PASSWORD', default='hotelapi_secure_password'),
+        'HOST': config('DB_HOST', default='db'),
+        'PORT': config('DB_PORT', default='5432', cast=int),
+        'CONN_MAX_AGE': 600,
     }
+}
+
+# Redis and Caching configuration for production
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': config('REDIS_URL', default='redis://redis:6379/0'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 50,
+                'retry_on_timeout': True,
+            },
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+            'IGNORE_EXCEPTIONS': True,  # Continue even if Redis is down
+        },
+        'KEY_PREFIX': 'hotel_booking',
+        'TIMEOUT': 300,
+    }
+}
+
+# Celery Configuration for Async Tasks
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://redis:6379/1')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://redis:6379/1')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes hard limit
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes soft limit
+CELERY_WORKER_PREFETCH_MULTIPLIER = 4
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
+
+# Celery Beat Schedule Configuration
+CELERY_BEAT_SCHEDULE = {
+    'check-booking-expiry': {
+        'task': 'bookings.tasks.check_pending_booking_expiry',
+        'schedule': 30 * 60,  # Every 30 minutes
+    },
+    'send-reminder-emails': {
+        'task': 'bookings.tasks.send_check_in_reminders',
+        'schedule': 3600,  # Every 1 hour
+    },
+    'cleanup-cancelled-bookings': {
+        'task': 'bookings.tasks.cleanup_cancelled_bookings',
+        'schedule': 86400,  # Daily
+    },
 }
 
 AUTH_PASSWORD_VALIDATORS = [

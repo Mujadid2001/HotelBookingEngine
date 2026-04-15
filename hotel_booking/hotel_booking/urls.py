@@ -47,7 +47,8 @@ if HAS_SPECTACULAR:
         path('api/v1/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     ]
 
-# Serve media files in development
+# Serve static and media files in development
 if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
