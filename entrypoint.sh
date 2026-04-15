@@ -5,7 +5,7 @@ cd /app/hotel_booking
 wait_for_db() {
   echo "Waiting for database..."
   for i in {1..60}; do
-    if python manage.py migrate --check 2>/dev/null; then
+    if pg_isready -h db -U hotelapi_user -d hotelMaarDB 2>/dev/null; then
       echo "Database available"
       break
     fi
