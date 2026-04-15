@@ -17,7 +17,7 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=lambda v: [s.strip() for s in v.split(',')])
 
 # Application definition
 INSTALLED_APPS = [
@@ -27,8 +27,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-]
-EXTERNAL_APPS = [
+     # Third-party apps
     'drf_spectacular',
     'django.contrib.staticfiles',
     'rest_framework',
@@ -39,8 +38,6 @@ EXTERNAL_APPS = [
     'manager',
     'offers',
 ]
-
-INSTALLED_APPS += EXTERNAL_APPS
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -165,7 +162,7 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 
 # Set session cookie age to 1 hour (3600 seconds)
 
-SESSION_COOKIE_AGE = 15 * 24 * 60 * 60
+SESSION_COOKIE_AGE = 2 * 24 * 60 * 60
 
 # Enable these in production with HTTPS
 SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=False, cast=bool)
@@ -177,7 +174,7 @@ SECURE_HSTS_PRELOAD = config('SECURE_HSTS_PRELOAD', default=True, cast=bool)
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # Used in production
-
+ 
 # In development, add app static dirs for static file serving
 if DEBUG:
     STATICFILES_DIRS = [BASE_DIR / 'hotel_booking' / 'manager' / 'static']

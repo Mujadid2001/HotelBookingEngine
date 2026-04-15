@@ -102,6 +102,6 @@ class BlacklistedTokenAdmin(admin.ModelAdmin):
 
 
 # Customize admin site headers
-admin.site.site_header = "Hotel Booking Engine Administration"
+admin.site.site_header = "Hotel Maar Admin"
 admin.site.site_title = "Hotel Admin"
 admin.site.index_title = "Welcome to Hotel Booking Administration"
