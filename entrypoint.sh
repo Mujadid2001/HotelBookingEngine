@@ -49,6 +49,9 @@ python manage.py collectstatic --noinput
 # 4) Create superuser if missing
 create_superuser_if_missing
 
+# 5) Start Gunicorn
+exec gunicorn hotel_booking.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120
+
 # 5) Start server (gunicorn handles static files via WhiteNoise middleware)
 exec "$@"
 

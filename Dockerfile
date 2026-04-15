@@ -11,7 +11,7 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gcc libpq-dev curl \
+    && apt-get install -y --no-install-recommends gcc libpq-dev curl postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user for security
@@ -39,5 +39,9 @@ USER appuser
 # Expose port 8000 for Gunicorn
 EXPOSE 8000
 
-# Start Gunicorn server with proper configuration
-CMD ["sh", "-c", "cd /app/hotel_booking && python manage.py collectstatic --noinput && gunicorn hotel_booking.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120"]
+# Make entrypoint executable and use it
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Run entrypoint script
+ENTRYPOINT ["/app/entrypoint.sh"]
