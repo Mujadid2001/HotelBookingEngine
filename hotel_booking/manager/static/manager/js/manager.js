@@ -246,6 +246,9 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // Real-time form validation
   setupFormValidation();
+  
+  // Clean up any duplicate error messages
+  cleanupDuplicateErrors();
 
   // Auto-focus first form field
   autoFocusFirstField();
@@ -314,123 +317,51 @@ function enhanceForms() {
 
 // Form validation setup
 function setupFormValidation() {
-  const forms = document.querySelectorAll('form');
+  const forms = document.querySelectorAll('.enhanced-form');
   forms.forEach(form => {
-    const inputs = form.querySelectorAll('input, select, textarea');
-    
-    inputs.forEach(input => {
-      // Real-time validation
-      input.addEventListener('blur', function() {
-        validateField(this);
-      });
+    // Only prevent double submission, don't validate client-side
+    // Backend validation takes precedence
+    form.addEventListener('submit', function(e) {
+      const submitBtn = this.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Saving...';
+      }
       
-      // Clear validation on focus
-      input.addEventListener('focus', function() {
-        this.classList.remove('is-invalid');
-        const feedback = this.nextElementSibling;
-        if (feedback && feedback.classList.contains('invalid-feedback')) {
-          feedback.remove();
-        }
+      // Scroll to first error if any exist from previous submission
+      const firstError = this.querySelector('.is-invalid');
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+    
+    // Clear validation classes on input change (but preserve backend errors)
+    const inputs = form.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+      input.addEventListener('input', function() {
+        // Only remove is-valid green tick on change, not is-invalid errors
+        this.classList.remove('is-valid');
       });
     });
+  });
+}
 
-    // Enhanced form submission
-    form.addEventListener('submit', function(e) {
-      if (!validateForm(this)) {
-        e.preventDefault();
-        // Scroll to first error
-        const firstError = this.querySelector('.is-invalid');
-        if (firstError) {
-          firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          firstError.focus();
+// Prevent duplicate error messages from appearing
+function cleanupDuplicateErrors() {
+  const forms = document.querySelectorAll('.enhanced-form');
+  forms.forEach(form => {
+    const fields = form.querySelectorAll('[class*="form-control"]');
+    fields.forEach(field => {
+      // Remove any duplicate feedback divs
+      const parent = field.parentNode;
+      const feedbacks = parent.querySelectorAll('.invalid-feedback');
+      if (feedbacks.length > 1) {
+        for (let i = 1; i < feedbacks.length; i++) {
+          feedbacks[i].remove();
         }
       }
     });
   });
-}
-
-// Field validation
-function validateField(field) {
-  const value = field.value.trim();
-  const isRequired = field.hasAttribute('required');
-  const minLength = field.getAttribute('minlength');
-  const maxLength = field.getAttribute('maxlength');
-  const pattern = field.getAttribute('pattern');
-  
-  let isValid = true;
-  let errorMessage = '';
-
-  // Required field validation
-  if (isRequired && !value) {
-    isValid = false;
-    errorMessage = 'This field is required';
-  }
-
-  // Length validation
-  if (isValid && value) {
-    if (minLength && value.length < parseInt(minLength)) {
-      isValid = false;
-      errorMessage = `Minimum ${minLength} characters required`;
-    }
-    if (maxLength && value.length > parseInt(maxLength)) {
-      isValid = false;
-      errorMessage = `Maximum ${maxLength} characters allowed`;
-    }
-  }
-
-  // Pattern validation
-  if (isValid && value && pattern) {
-    const regex = new RegExp(pattern);
-    if (!regex.test(value)) {
-      isValid = false;
-      errorMessage = 'Invalid format';
-    }
-  }
-
-  // Email validation
-  if (isValid && field.type === 'email' && value) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(value)) {
-      isValid = false;
-      errorMessage = 'Please enter a valid email address';
-    }
-  }
-
-  // Update field state
-  if (!isValid) {
-    field.classList.add('is-invalid');
-    field.classList.remove('is-valid');
-    
-    // Add or update error message
-    let feedback = field.nextElementSibling;
-    if (!feedback || !feedback.classList.contains('invalid-feedback')) {
-      feedback = document.createElement('div');
-      feedback.className = 'invalid-feedback';
-      field.parentNode.appendChild(feedback);
-    }
-    feedback.textContent = errorMessage;
-  } else {
-    field.classList.remove('is-invalid');
-    field.classList.add('is-valid');
-  }
-
-  return isValid;
-}
-
-// Form validation
-function validateForm(form) {
-  let isValid = true;
-  const inputs = form.querySelectorAll('input, select, textarea');
-  
-  inputs.forEach(input => {
-    if (!validateField(input)) {
-      isValid = false;
-    }
-  });
-
-  return isValid;
-}
-
 // Auto-focus first field
 function autoFocusFirstField() {
   const forms = document.querySelectorAll('form');

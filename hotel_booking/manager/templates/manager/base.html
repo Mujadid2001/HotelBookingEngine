@@ -24,7 +24,18 @@
     />
     <link href="{% static 'manager/css/manager.css' %}" rel="stylesheet" />
     <style>
-      /* Remove browser validation styling from search input */
+      /* Disable browser native validation styling */
+      input:valid,
+      input:invalid,
+      textarea:valid,
+      textarea:invalid,
+      select:valid,
+      select:invalid {
+        background-image: none !important;
+        box-shadow: none !important;
+      }
+      
+      /* Remove search input browser validation */
       .search-input:valid {
         border-color: #ced4da !important;
         box-shadow: none !important;
@@ -41,6 +52,12 @@
       .search-input:valid:not(:placeholder-shown) {
         background-image: none !important;
         padding-right: 0.75rem !important;
+      }
+      
+      /* Ensure form controls don't show browser validation */
+      .form-control:valid,
+      .form-select:valid {
+        background-image: none !important;
       }
     </style>
   </head>

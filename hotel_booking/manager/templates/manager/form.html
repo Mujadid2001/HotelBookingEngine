@@ -54,14 +54,22 @@
                 {# Textarea Fields #}
                 {% elif field_type == 'textarea' %}
                   <div class="form-floating">
-                    {{ field|add_class:'form-control' }}
+                    {% if field.errors %}
+                      {{ field|add_class:'form-control is-invalid' }}
+                    {% else %}
+                      {{ field|add_class:'form-control' }}
+                    {% endif %}
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                   </div>
 
                 {# Select Fields #}
                 {% elif field_type == 'select' %}
                   <div class="form-floating">
-                    {{ field|add_class:'form-select' }}
+                    {% if field.errors %}
+                      {{ field|add_class:'form-select is-invalid' }}
+                    {% else %}
+                      {{ field|add_class:'form-select' }}
+                    {% endif %}
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                   </div>
 
@@ -72,44 +80,66 @@
                 {# Date Fields #}
                 {% elif field_type == 'date' %}
                   <div class="form-floating">
-                    {{ field|add_class:'form-control date-input' }}
+                    {% if field.errors %}
+                      {{ field|add_class:'form-control date-input is-invalid' }}
+                    {% else %}
+                      {{ field|add_class:'form-control date-input' }}
+                    {% endif %}
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                   </div>
 
                 {# URL Fields #}
                 {% elif field_type == 'url' %}
                   <div class="form-floating">
-                    {{ field|add_class:'form-control url-input' }}
+                    {% if field.errors %}
+                      {{ field|add_class:'form-control url-input is-invalid' }}
+                    {% else %}
+                      {{ field|add_class:'form-control url-input' }}
+                    {% endif %}
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                   </div>
 
                 {# Email Fields #}
                 {% elif field_type == 'email' %}
                   <div class="form-floating">
-                    {{ field|add_class:'form-control email-input' }}
+                    {% if field.errors %}
+                      {{ field|add_class:'form-control email-input is-invalid' }}
+                    {% else %}
+                      {{ field|add_class:'form-control email-input' }}
+                    {% endif %}
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                   </div>
 
                 {# Number Fields #}
                 {% elif field_type == 'number' %}
                   <div class="form-floating">
-                    {{ field|add_class:'form-control number-input' }}
+                    {% if field.errors %}
+                      {{ field|add_class:'form-control number-input is-invalid' }}
+                    {% else %}
+                      {{ field|add_class:'form-control number-input' }}
+                    {% endif %}
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                   </div>
 
                 {# Default Text Fields #}
                 {% else %}
                   <div class="form-floating">
-                    {{ field|add_class:'form-control' }}
+                    {% if field.errors %}
+                      {{ field|add_class:'form-control is-invalid' }}
+                    {% else %}
+                      {{ field|add_class:'form-control' }}
+                    {% endif %}
                     <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                   </div>
                 {% endif %}
 
                 {# Field Errors #}
                 {% if field.errors %}
-                  <div class="invalid-feedback d-block">
-                    {{ field.errors|striptags }}
-                  </div>
+                  {% for error in field.errors %}
+                    <div class="invalid-feedback d-block" style="margin-top: 0.5rem;">
+                      <i class="fa-solid fa-circle-exclamation me-1"></i>{{ error }}
+                    </div>
+                  {% endfor %}
                 {% endif %}
 
                 {# Help Text #}
