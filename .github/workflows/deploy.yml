@@ -1,0 +1,82 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Deploy Backend to server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            cd /HotelBookingEngine
+            git pull origin main
+            docker-compose down
+            docker-compose build --no-cache
+            docker-compose up -d
+            sleep 20
+            docker-compose exec -T web python manage.py migrate
+            docker-compose exec -T web python manage.py collectstatic --noinput
+            echo "Backend deployment successful!"
+      
+      - name: Backend health check
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            sleep 5
+            curl -f http://127.0.0.1:9000/api/v1/health/ || exit 1
+            echo "Backend health check passed!"
+
+  # deploy-frontend:
+  #   runs-on: ubuntu-latest
+    
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v3
+      
+  #     - name: Build Vue.js
+  #       run: |
+  #         # If your Vue.js is in a separate repo, clone and build it
+  #         # For now, assuming you'll manually place dist in public folder
+  #         echo "Vue.js frontend ready to deploy"
+      
+  #     - name: Deploy Frontend to server
+  #       uses: appleboy/ssh-action@master
+  #       with:
+  #         host: ${{ secrets.SERVER_HOST }}
+  #         username: ${{ secrets.SERVER_USER }}
+  #         key: ${{ secrets.SERVER_SSH_KEY }}
+  #         port: 22
+  #         script: |
+  #           # Frontend deployment commands here
+  #           # Copy your dist folder to /var/www/html
+  #           echo "Frontend deployment placeholder"
+      
+  #     - name: Frontend health check
+  #       uses: appleboy/ssh-action@master
+  #       with:
+  #         host: ${{ secrets.SERVER_HOST }}
+  #         username: ${{ secrets.SERVER_USER }}
+  #         key: ${{ secrets.SERVER_SSH_KEY }}
+  #         port: 22
+  #         script: |
+  #           sleep 2
+  #           curl -f http://127.0.0.1/index.html || exit 1
+  #           echo "Frontend health check passed!"
