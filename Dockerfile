@@ -1,6 +1,9 @@
 # Dockerfile for Django API (HotelBookingEngine)
 FROM python:3.12-slim
 
+# Use faster Debian mirror
+RUN sed -i 's|deb.debian.org|mirror.example.com|g' /etc/apt/sources.list
+
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -8,10 +11,19 @@ ENV PYTHONUNBUFFERED=1
 # Set work directory
 WORKDIR /app
 
+# # Install system dependencies
+# RUN apt-get update \
+#     && apt-get install -y --no-install-recommends gcc libpq-dev curl postgresql-client \
+#     && rm -rf /var/lib/apt/lists/*
+
 # Install system dependencies
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends gcc libpq-dev curl postgresql-client \
+RUN apt-get update --allow-releaseinfo-change-origin \
+    && apt-get install -y --no-install-recommends \
+       --option=Apt::Acquire::Retries=3 \
+       --option=Apt::Acquire::http::Timeout=60 \
+       gcc libpq-dev curl postgresql-client \
     && rm -rf /var/lib/apt/lists/*
+
 
 # Create a non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser appuser

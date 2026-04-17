@@ -1,729 +1,940 @@
-# Hotel Booking Engine
+# Hotel Booking Engine - API Documentation
 
-A comprehensive Django REST API for hotel booking management with search, booking flow, payment processing, and email notifications.
+Production-ready REST API for hotel booking management with HTTPS support, JWT authentication, and complete booking workflow.
 
-## 🚀 Quick Start
+---
+
+## 🚀 Quick Start (Development)
 
 ### Prerequisites
-- Python 3.8+
-- Django 5.2.5
-- PostgreSQL (recommended) or SQLite (development)
+- Docker & Docker Compose
+- No other dependencies needed
 
-### Installation
+### Run Locally (5 minutes)
+
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd hotel_booking_engine
+# Navigate to project directory
+cd HotelBookingEngine
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Start all services (Nginx, Django, PostgreSQL, Redis, Celery)
+docker-compose up -d
 
-# Install dependencies
-pip install -r requirements.txt
+# Wait for services to initialize (30 seconds)
+sleep 30
 
-# Setup database
-cd hotel_booking
-python manage.py migrate
+# Check health
+curl http://localhost/api/v1/health/
 
-# Create superuser (optional)
-python manage.py createsuperuser
-
-# Run development server
-python manage.py runserver
+# View logs
+docker-compose logs -f web
 ```
 
-### Environment Settings
-- **Development**: `settings.py` (default)
-- **Production**: `deployment.py` (set `DJANGO_SETTINGS_MODULE=hotel_booking.deployment`)
+**Services Running:**
+- API: `http://localhost/api/v1/`
+- HTTPS: `https://localhost/api/v1/` (self-signed cert for dev)
+- Swagger Docs: `http://localhost/api/v1/docs/`
+- Admin: `http://localhost/admin/`
 
-## 📖 API Documentation
+**Default Credentials:**
+- Username: `admin`
+- Password: `Admin@123456`
+
+---
+
+## 📡 API Endpoints Reference
 
 ### Base URL
 ```
-http://localhost:8000/api/v1/
+Development: http://localhost/api/v1/
+Production: https://your-domain.com/api/v1/
 ```
 
-### Interactive Documentation
-- **Swagger UI**: `http://localhost:8000/api/v1/docs/`
-- **ReDoc**: `http://localhost:8000/api/v1/redoc/`
-- **OpenAPI Schema**: `http://localhost:8000/api/v1/schema/`
-
-## 🔐 Authentication
-
-The API uses JWT (JSON Web Token) authentication. Include the token in the Authorization header:
-
+### Authentication Header
 ```http
-Authorization: Bearer <your-jwt-token>
+Authorization: Bearer <access_token>
 ```
 
-### Authentication Endpoints
+---
 
-#### Register
+## 🔐 Authentication Endpoints
+
+### 1. Register User
 ```http
 POST /api/v1/auth/register/
 ```
+
 **Request:**
 ```json
 {
   "username": "johndoe",
   "email": "john@example.com",
-  "password": "securepassword123",
+  "password": "SecurePassword123!",
   "first_name": "John",
   "last_name": "Doe",
   "phone_number": "+1234567890"
 }
 ```
 
-#### Login
+**Response (201):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "username": "johndoe",
+  "email": "john@example.com",
+  "first_name": "John",
+  "last_name": "Doe",
+  "phone_number": "+1234567890"
+}
+```
+
+---
+
+### 2. Login
 ```http
 POST /api/v1/auth/login/
 ```
+
 **Request:**
 ```json
 {
   "username": "johndoe",
-  "password": "securepassword123"
+  "password": "SecurePassword123!"
 }
 ```
-**Response:**
+
+**Response (200):**
 ```json
 {
-  "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+  "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNjE2MjM5MDIyfQ...",
+  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTYxNjI0MjYyMn0...",
   "user": {
-    "id": "uuid",
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "username": "johndoe",
     "email": "john@example.com"
   }
 }
 ```
 
-#### Token Refresh
+**How to use tokens:**
+- Store `access` token in localStorage/sessionStorage
+- Use `access` token in all requests: `Authorization: Bearer <access>`
+- When `access` expires, use `refresh` token to get new one
+
+---
+
+### 3. Logout
 ```http
-POST /api/v1/auth/token/refresh/
+POST /api/v1/auth/logout/
+Authorization: Bearer <access_token>
 ```
-**Request:**
+
+**Response (200):**
 ```json
 {
-  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+  "message": "Successfully logged out"
 }
 ```
 
-#### Logout
+---
+
+### 4. Profile
 ```http
-POST /api/v1/auth/logout/
+GET /api/v1/auth/profile/
+Authorization: Bearer <access_token>
 ```
-Headers: `Authorization: Bearer <token>`
 
-## 🏨 Hotel Management API
-
-### Hotel Discovery
-
-#### List All Hotels
-```http
-GET /api/v1/hotels/
-```
-**Query Parameters:**
-- `page` (optional): Page number for pagination
-- `page_size` (optional): Number of items per page (default: 20)
-
-**Response:**
+**Response (200):**
 ```json
 {
-  "count": 45,
-  "next": "http://localhost:8000/api/v1/hotels/?page=2",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "username": "johndoe",
+  "email": "john@example.com",
+  "first_name": "John",
+  "last_name": "Doe",
+  "phone_number": "+1234567890"
+}
+```
+
+---
+
+### 5. Update Profile
+```http
+PUT /api/v1/auth/profile/update/
+Authorization: Bearer <access_token>
+```
+
+**Request:**
+```json
+{
+  "first_name": "Jonathan",
+  "last_name": "Smith",
+  "phone_number": "+9876543210"
+}
+```
+
+**Response (200):** Updated profile object
+
+---
+
+### 6. Change Password
+```http
+POST /api/v1/auth/password/change/
+Authorization: Bearer <access_token>
+```
+
+**Request:**
+```json
+{
+  "old_password": "OldPassword123!",
+  "new_password": "NewPassword456!"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Password changed successfully"
+}
+```
+
+---
+
+## 🏨 Hotel Endpoints
+
+### 1. List All Hotels (Paginated)
+```http
+GET /api/v1/hotels/?page=1&page_size=10
+```
+
+**Query Parameters:**
+- `page` - Page number (default: 1)
+- `page_size` - Items per page (default: 10)
+- `ordering` - Sort by field (e.g., `?ordering=-created_at`)
+
+**Response (200):**
+```json
+{
+  "count": 150,
+  "next": "http://localhost/api/v1/hotels/?page=2",
   "previous": null,
   "results": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
-      "name": "Grand Hotel",
-      "description": "Luxury hotel in downtown",
-      "full_address": "123 Main St, New York, NY 10001",
-      "city": "New York",
-      "state": "NY",
-      "country": "United States",
-      "star_rating": 5,
-      "phone_number": "+1234567890",
-      "email": "info@grandhotel.com",
-      "website": "https://grandhotel.com",
-      "room_types": ["Standard", "Deluxe", "Suite"],
-      "amenities_count": 15,
-      "room_stats": {
-        "total_rooms": 150,
-        "available_rooms": 45
-      }
+      "name": "Grand Plaza Hotel",
+      "city": "Karachi",
+      "country": "Pakistan",
+      "rating": 4.5,
+      "price_per_night": "15000.00",
+      "image": "https://...",
+      "description": "Luxury 5-star hotel...",
+      "amenities": ["WiFi", "Pool", "Gym"]
     }
   ]
 }
 ```
 
-#### Hotel Search
+---
+
+### 2. Search Hotels
 ```http
-GET /api/v1/hotels/search/
+GET /api/v1/hotels/search/?city=Karachi&check_in=2024-05-01&check_out=2024-05-05&guests=2
 ```
+
 **Query Parameters:**
-- `location` (optional): City name to search in
-- `check_in` (optional): Check-in date (YYYY-MM-DD)
-- `check_out` (optional): Check-out date (YYYY-MM-DD)
-- `guests` (optional): Number of guests
-- `min_price` (optional): Minimum price per night
-- `max_price` (optional): Maximum price per night
-- `star_rating` (optional): Hotel star rating (1-5)
+- `city` - Hotel city
+- `check_in` - Check-in date (YYYY-MM-DD)
+- `check_out` - Check-out date (YYYY-MM-DD)
+- `guests` - Number of guests
+- `min_price` - Minimum price
+- `max_price` - Maximum price
 
-**Example:**
-```http
-GET /api/v1/hotels/search/?location=New York&check_in=2024-03-15&check_out=2024-03-17&guests=2
-```
+**Response (200):** Hotel list with availability
 
-#### Hotel Details
+---
+
+### 3. Get Hotel Details
 ```http
 GET /api/v1/hotels/{hotel_id}/
 ```
-**Response:**
+
+**Response (200):**
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
-  "name": "Grand Hotel",
-  "description": "Luxury hotel with stunning city views...",
-  "full_address": "123 Main St, New York, NY 10001",
-  "phone_number": "+1234567890",
-  "email": "info@grandhotel.com",
-  "website": "https://grandhotel.com",
-  "star_rating": 5,
-  "check_in_time": "15:00:00",
-  "check_out_time": "11:00:00",
-  "cancellation_policy": "Free cancellation 24 hours before check-in",
-  "pet_policy": "Pets allowed with additional fee",
-  "smoking_policy": "Non-smoking property",
-  "amenities": [
+  "name": "Grand Plaza Hotel",
+  "city": "Karachi",
+  "country": "Pakistan",
+  "rating": 4.5,
+  "description": "Luxury 5-star hotel...",
+  "address": "123 Main Street, Karachi",
+  "phone": "+92-21-123456",
+  "email": "info@grandplaza.com",
+  "amenities": ["WiFi", "Pool", "Gym", "Parking"],
+  "services": ["Room Service", "Concierge", "Tours"],
+  "policies": {
+    "check_in_time": "14:00",
+    "check_out_time": "12:00",
+    "cancellation_policy": "Free cancellation until 48 hours before check-in"
+  }
+}
+```
+
+---
+
+### 4. Get Hotel Rooms
+```http
+GET /api/v1/hotels/{hotel_id}/rooms/?page=1&page_size=10
+```
+
+**Response (200):**
+```json
+{
+  "count": 45,
+  "results": [
     {
-      "id": "uuid",
-      "name": "Free WiFi",
-      "category": "Internet",
-      "description": "High-speed internet throughout the property"
-    }
-  ],
-  "room_types": [
-    {
-      "id": "uuid",
-      "name": "Deluxe Room",
-      "description": "Spacious room with city view",
-      "capacity": 2,
-      "size_sqm": 35,
-      "base_price": "150.00"
+      "id": "660e8400-e29b-41d4-a716-446655440001",
+      "room_number": "101",
+      "type": "Single",
+      "capacity": 1,
+      "price_per_night": "5000.00",
+      "amenities": ["WiFi", "AC", "TV"],
+      "available": true,
+      "image": "https://..."
     }
   ]
 }
 ```
 
-### Hotel Information Endpoints
+---
 
-#### Hotel Gallery
+### 5. Get Hotel Availability
+```http
+GET /api/v1/hotels/{hotel_id}/availability/?check_in=2024-05-01&check_out=2024-05-05
+```
+
+**Response (200):**
+```json
+{
+  "hotel_id": "550e8400-e29b-41d4-a716-446655440000",
+  "check_in": "2024-05-01",
+  "check_out": "2024-05-05",
+  "available_rooms": 12,
+  "total_rooms": 45,
+  "price_range": {
+    "min": "5000.00",
+    "max": "25000.00"
+  }
+}
+```
+
+---
+
+### 6. Featured Hotels
+```http
+GET /api/v1/hotels/featured/
+```
+
+**Response (200):** List of featured hotels
+
+---
+
+### 7. Hotel Gallery
 ```http
 GET /api/v1/hotels/{hotel_id}/gallery/
 ```
 
-#### Hotel Reviews
-```http
-GET /api/v1/hotels/{hotel_id}/reviews/
+**Response (200):**
+```json
+{
+  "hotel_id": "550e8400-e29b-41d4-a716-446655440000",
+  "images": [
+    {
+      "id": 1,
+      "url": "https://...",
+      "caption": "Lobby"
+    }
+  ]
+}
 ```
 
-#### Hotel Amenities
+---
+
+### 8. Hotel Reviews
 ```http
-GET /api/v1/hotels/{hotel_id}/amenities/
+GET /api/v1/hotels/{hotel_id}/reviews/?page=1
 ```
 
-#### Hotel Room Types
-```http
-GET /api/v1/hotels/{hotel_id}/room-types/
+**Response (200):**
+```json
+{
+  "count": 156,
+  "results": [
+    {
+      "id": 1,
+      "user": "johndoe",
+      "rating": 5,
+      "comment": "Great hotel, excellent service!",
+      "created_at": "2024-04-15T10:30:00Z"
+    }
+  ]
+}
 ```
 
-#### Hotel Availability
+---
+
+## 📅 Booking Endpoints
+
+### 1. Create Booking
 ```http
-GET /api/v1/hotels/{hotel_id}/availability/
+POST /api/v1/bookings/create/
+Authorization: Bearer <access_token>
 ```
-**Query Parameters:**
-- `check_in`: Check-in date (YYYY-MM-DD)
-- `check_out`: Check-out date (YYYY-MM-DD)
-- `guests`: Number of guests
-
-## 🛏️ Room Management
-
-#### Hotel Rooms
-```http
-GET /api/v1/hotels/{hotel_id}/rooms/
-```
-
-#### Room Details
-```http
-GET /api/v1/hotels/{hotel_id}/rooms/{room_id}/
-```
-
-#### Room Availability
-```http
-GET /api/v1/hotels/{hotel_id}/rooms/{room_id}/availability/
-```
-
-## 📅 Booking Management API
-
-### Booking Flow
-
-#### Complete Booking Flow
-```http
-POST /api/v1/bookings/complete-booking/
-```
-**Description:** Handles the complete booking process from room search to confirmation email.
 
 **Request:**
 ```json
 {
-  "search_criteria": {
-    "hotel_id": "550e8400-e29b-41d4-a716-446655440000",
-    "location": "New York",
-    "check_in": "2024-03-15",
-    "check_out": "2024-03-17",
-    "guests": 2
-  },
-  "booking_details": {
-    "room_id": "550e8400-e29b-41d4-a716-446655440001",
-    "primary_guest_name": "John Doe",
-    "primary_guest_email": "john@example.com",
-    "primary_guest_phone": "+1234567890",
-    "special_requests": "Early check-in if possible",
-    "extras": [
-      {
-        "extra_id": "550e8400-e29b-41d4-a716-446655440002",
-        "quantity": 1
-      }
-    ]
-  },
-  "payment_info": {
-    "payment_method": "card",
-    "save_payment_method": false
-  }
+  "hotel_id": "550e8400-e29b-41d4-a716-446655440000",
+  "room_id": "660e8400-e29b-41d4-a716-446655440001",
+  "check_in": "2024-05-01",
+  "check_out": "2024-05-05",
+  "guests": 2,
+  "guest_name": "John Doe",
+  "guest_email": "john@example.com",
+  "guest_phone": "+1234567890",
+  "special_requests": "Late checkout if available",
+  "payment_method": "card"
 }
 ```
 
-**Response:**
+**Response (201):**
 ```json
 {
-  "success": true,
-  "message": "Booking completed successfully",
-  "booking": {
-    "id": "550e8400-e29b-41d4-a716-446655440003",
-    "booking_reference": "BK001234",
-    "status": "confirmed",
-    "payment_status": "paid",
-    "check_in": "2024-03-15",
-    "check_out": "2024-03-17",
-    "guests": 2,
-    "total_price": "450.00",
-    "room": {
-      "id": "550e8400-e29b-41d4-a716-446655440001",
-      "room_number": "101",
-      "room_type": {
-        "name": "Deluxe Room",
-        "description": "Spacious room with city view"
-      }
-    },
-    "hotel": {
-      "name": "Grand Hotel",
-      "address": "123 Main St, New York"
-    }
+  "id": 1001,
+  "confirmation_number": "HBE-2024-001001",
+  "status": "pending",
+  "hotel": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Grand Plaza Hotel"
   },
-  "payment": {
-    "status": "success",
-    "transaction_id": "txn_1234567890"
-  },
-  "email_notification": {
-    "sent": true,
-    "recipient": "john@example.com"
-  }
+  "check_in": "2024-05-01",
+  "check_out": "2024-05-05",
+  "nights": 4,
+  "total_price": "60000.00",
+  "currency": "PKR",
+  "created_at": "2024-04-20T10:30:00Z"
 }
 ```
 
-#### Room Search Only
+---
+
+### 2. Get Booking List
 ```http
-GET /api/v1/bookings/search-rooms/
+GET /api/v1/bookings/?page=1&status=confirmed
+Authorization: Bearer <access_token>
 ```
-**Description:** Search for available rooms without creating a booking.
 
 **Query Parameters:**
-- `hotel_id` (optional): Specific hotel UUID
-- `location` (optional): City name to search in
-- `check_in`: Check-in date (YYYY-MM-DD)
-- `check_out`: Check-out date (YYYY-MM-DD)
-- `guests`: Number of guests (default: 1)
+- `status` - pending, confirmed, checked_in, checked_out, cancelled
 
-**Example:**
-```http
-GET /api/v1/bookings/search-rooms/?check_in=2024-03-15&check_out=2024-03-17&guests=2&location=New York
-```
-
-**Response:**
+**Response (200):**
 ```json
 {
-  "search_criteria": {
-    "check_in": "2024-03-15",
-    "check_out": "2024-03-17",
-    "guests": 2,
-    "location": "New York"
-  },
-  "available_rooms": [
+  "count": 8,
+  "results": [
     {
-      "room_id": "550e8400-e29b-41d4-a716-446655440001",
-      "room_number": "101",
-      "room_type": {
-        "id": "550e8400-e29b-41d4-a716-446655440004",
-        "name": "Deluxe Room",
-        "description": "Spacious room with city view",
-        "capacity": 3,
-        "amenities": ["WiFi", "TV", "Air Conditioning"]
-      },
-      "hotel": {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "name": "Grand Hotel",
-        "address": "123 Main St, New York",
-        "city": "New York",
-        "rating": 4.5
-      },
-      "pricing": {
-        "room_price": "300.00",
-        "extras_price": "0.00",
-        "tax_amount": "30.00",
-        "total_price": "330.00",
-        "nights": 2,
-        "price_per_night": "150.00"
-      }
+      "id": 1001,
+      "confirmation_number": "HBE-2024-001001",
+      "status": "confirmed",
+      "hotel": "Grand Plaza Hotel",
+      "check_in": "2024-05-01",
+      "check_out": "2024-05-05",
+      "total_price": "60000.00"
     }
-  ],
-  "total_found": 1
+  ]
 }
 ```
 
-### Booking Management
+---
 
-#### List User Bookings
+### 3. Get Booking Details
 ```http
-GET /api/v1/bookings/
-```
-Headers: `Authorization: Bearer <token>`
-
-#### Create Booking
-```http
-POST /api/v1/bookings/create/
+GET /api/v1/bookings/{booking_id}/
+Authorization: Bearer <access_token>
 ```
 
-#### Get Booking Quote
-```http
-POST /api/v1/bookings/quote/
-```
-
-#### Booking Details
-```http
-GET /api/v1/bookings/{booking_reference}/
-```
-
-#### Update Booking
-```http
-PUT /api/v1/bookings/{booking_reference}/update/
-```
-
-#### Cancel Booking
-```http
-POST /api/v1/bookings/{booking_reference}/cancel/
-```
-
-#### Confirm Booking
-```http
-POST /api/v1/bookings/{booking_reference}/confirm/
-```
-
-### Check-in/Check-out Operations
-
-#### Check-in
-```http
-POST /api/v1/bookings/{booking_reference}/checkin/
-```
-
-#### Check-out
-```http
-POST /api/v1/bookings/{booking_reference}/checkout/
-```
-
-## 🔍 Advanced Search Features
-
-### Hotel Search with Availability
-```http
-GET /api/v1/hotels/search-availability/
-```
-
-### Hotel Search by Capacity
-```http
-GET /api/v1/hotels/search-capacity/
-```
-
-### Flexible Hotel Search
-```http
-GET /api/v1/hotels/search-flexible/
-```
-
-## 👥 User Profile Management
-
-### Get Profile
-```http
-GET /api/v1/auth/profile/
-```
-
-### Update Profile
-```http
-PUT /api/v1/auth/profile/update/
-```
-
-### Change Password
-```http
-POST /api/v1/auth/password/change/
-```
-
-### Password Reset Request
-```http
-POST /api/v1/auth/password/reset/request/
-```
-
-### Password Reset Confirm
-```http
-POST /api/v1/auth/password/reset/confirm/{token}/
-```
-
-### Email Verification
-```http
-GET /api/v1/auth/verify-email/{token}/
-```
-
-## ⚙️ Key Features
-
-### 🔍 **Flexible Search**
-- **Hotel ID Optional**: Search across all hotels or target specific ones
-- **Location-based Search**: Find hotels by city/region
-- **Date Range Availability**: Real-time room availability checking
-- **Guest Capacity Filtering**: Filter by number of guests
-- **Price Range Filtering**: Set minimum and maximum price limits
-
-### 💰 **Dynamic Pricing**
-- Real-time price calculation including taxes and extras
-- Support for room extras and add-ons
-- Transparent pricing breakdown
-- Seasonal and demand-based pricing support
-
-### 📧 **Email Notifications**
-- Booking confirmation emails with complete details
-- Booking modification notifications
-- Cancellation confirmations
-- HTML email templates with hotel branding
-
-### 🔒 **Security & Validation**
-- JWT token-based authentication
-- Comprehensive input validation
-- Transactional safety (rollback on failure)
-- Rate limiting and security headers
-
-### 📱 **API Design**
-- RESTful API design principles
-- Consistent response formats
-- Comprehensive error handling
-- OpenAPI/Swagger documentation
-
-## 🗂️ Data Models
-
-### Core Entities
-- **Hotel**: Property information, location, amenities, policies
-- **Room**: Individual rooms with types, pricing, availability
-- **RoomType**: Room categories with features and capacity
-- **Booking**: Reservation records with guest details and status
-- **User**: Customer accounts with profiles and preferences
-- **Amenity**: Hotel and room features/services
-
-### Key Relationships
-- Hotels have multiple Rooms and RoomTypes
-- Bookings link Users to specific Rooms
-- RoomTypes define pricing and capacity rules
-- Amenities can be associated with Hotels or RoomTypes
-
-## 🚨 Error Handling
-
-### Standard Error Response Format
+**Response (200):**
 ```json
 {
-  "error": "Error message description",
-  "code": "ERROR_CODE",
-  "details": {
-    "field": "Specific field error details"
-  }
+  "id": 1001,
+  "confirmation_number": "HBE-2024-001001",
+  "status": "confirmed",
+  "user": "johndoe",
+  "hotel": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Grand Plaza Hotel",
+    "city": "Karachi"
+  },
+  "room": {
+    "id": "660e8400-e29b-41d4-a716-446655440001",
+    "type": "Double",
+    "capacity": 2
+  },
+  "check_in": "2024-05-01",
+  "check_out": "2024-05-05",
+  "nights": 4,
+  "guest_name": "John Doe",
+  "guest_email": "john@example.com",
+  "total_price": "60000.00",
+  "payment_status": "completed",
+  "created_at": "2024-04-20T10:30:00Z"
 }
 ```
 
-### Common HTTP Status Codes
-- `200 OK`: Successful request
-- `201 Created`: Resource created successfully
-- `400 Bad Request`: Invalid request parameters
-- `401 Unauthorized`: Authentication required
-- `403 Forbidden`: Insufficient permissions
-- `404 Not Found`: Resource not found
-- `409 Conflict`: Resource conflict (e.g., room already booked)
-- `422 Unprocessable Entity`: Validation errors
-- `500 Internal Server Error`: Server error
+---
 
-### Common Error Examples
+### 4. Update Booking
+```http
+PUT /api/v1/bookings/{booking_id}/update/
+Authorization: Bearer <access_token>
+```
 
-#### Room Not Available
+**Request:**
 ```json
 {
-  "error": "No available rooms found for the specified criteria",
-  "code": "NO_ROOMS_AVAILABLE",
-  "search_criteria": {
-    "check_in": "2024-03-15",
-    "check_out": "2024-03-17",
-    "guests": 2
-  }
+  "check_out": "2024-05-06",
+  "special_requests": "Updated request"
 }
 ```
 
-#### Invalid Date Range
+**Response (200):** Updated booking object
+
+---
+
+### 5. Confirm Booking
+```http
+POST /api/v1/bookings/{booking_id}/confirm/
+Authorization: Bearer <access_token>
+```
+
+**Response (200):**
 ```json
 {
-  "error": "Check-out date must be after check-in date",
-  "code": "INVALID_DATE_RANGE",
-  "details": {
-    "check_in": "2024-03-17",
-    "check_out": "2024-03-15"
-  }
+  "id": 1001,
+  "status": "confirmed",
+  "message": "Booking confirmed successfully"
 }
 ```
 
-#### Payment Failed
+---
+
+### 6. Cancel Booking
+```http
+POST /api/v1/bookings/{booking_id}/cancel/
+Authorization: Bearer <access_token>
+```
+
+**Request:**
 ```json
 {
-  "error": "Payment processing failed",
-  "code": "PAYMENT_FAILED",
-  "details": {
-    "payment_method": "card",
-    "reason": "Insufficient funds"
-  }
+  "reason": "Change of plans"
 }
 ```
 
-## 📋 Usage Examples
+**Response (200):**
+```json
+{
+  "id": 1001,
+  "status": "cancelled",
+  "refund_amount": "55000.00",
+  "message": "Booking cancelled, refund processed"
+}
+```
 
-### Example 1: Search and Book Flow
-```bash
-# 1. Search for available rooms
-curl -X GET "http://localhost:8000/api/v1/bookings/search-rooms/?check_in=2024-03-15&check_out=2024-03-17&guests=2&location=New York"
+---
 
-# 2. Complete booking with search results
-curl -X POST "http://localhost:8000/api/v1/bookings/complete-booking/" \
-  -H "Authorization: Bearer your-jwt-token" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "search_criteria": {
-      "check_in": "2024-03-15",
-      "check_out": "2024-03-17",
-      "guests": 2,
-      "location": "New York"
-    },
-    "booking_details": {
-      "primary_guest_name": "John Doe",
-      "primary_guest_email": "john@example.com",
-      "primary_guest_phone": "+1234567890"
-    },
-    "payment_info": {
-      "payment_method": "card"
+### 7. Booking Audit History
+```http
+GET /api/v1/bookings/{booking_id}/audit-history/
+Authorization: Bearer <access_token>
+```
+
+**Response (200):**
+```json
+[
+  {
+    "timestamp": "2024-04-20T10:30:00Z",
+    "action": "created",
+    "changed_by": "johndoe",
+    "details": "Booking created"
+  },
+  {
+    "timestamp": "2024-04-20T11:30:00Z",
+    "action": "confirmed",
+    "changed_by": "johndoe",
+    "details": "Payment completed"
+  }
+]
+```
+
+---
+
+## 🎁 Offers Endpoints
+
+### 1. Get All Offers
+```http
+GET /api/v1/offers/?page=1
+```
+
+**Response (200):**
+```json
+{
+  "count": 25,
+  "results": [
+    {
+      "id": "770e8400-e29b-41d4-a716-446655440002",
+      "title": "Summer Special 30% Off",
+      "description": "Book now and get 30% discount...",
+      "discount_percentage": 30,
+      "valid_from": "2024-05-01",
+      "valid_until": "2024-06-30",
+      "category": "seasonal",
+      "featured": true
     }
-  }'
+  ]
+}
 ```
 
-### Example 2: Direct Room Booking
-```bash
-curl -X POST "http://localhost:8000/api/v1/bookings/complete-booking/" \
-  -H "Authorization: Bearer your-jwt-token" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "search_criteria": {
-      "check_in": "2024-03-15",
-      "check_out": "2024-03-17",
-      "guests": 2
-    },
-    "booking_details": {
-      "room_id": "550e8400-e29b-41d4-a716-446655440001",
-      "primary_guest_name": "John Doe",
-      "primary_guest_email": "john@example.com",
-      "primary_guest_phone": "+1234567890",
-      "special_requests": "Late checkout if possible"
-    },
-    "payment_info": {
-      "payment_method": "card"
+---
+
+### 2. Featured Offers
+```http
+GET /api/v1/offers/featured/
+```
+
+**Response (200):** List of featured special offers
+
+---
+
+### 3. Search Offers
+```http
+GET /api/v1/offers/search/?category=seasonal&min_discount=20
+```
+
+**Response (200):** Filtered offers
+
+---
+
+### 4. Get Offer Details
+```http
+GET /api/v1/offers/{offer_slug}/
+```
+
+**Response (200):**
+```json
+{
+  "id": "770e8400-e29b-41d4-a716-446655440002",
+  "title": "Summer Special 30% Off",
+  "description": "Book now and get 30% discount...",
+  "discount_percentage": 30,
+  "max_discount_amount": "50000.00",
+  "valid_from": "2024-05-01",
+  "valid_until": "2024-06-30",
+  "terms_and_conditions": "...",
+  "highlights": ["Free breakfast", "Late checkout"],
+  "images": ["https://..."]
+}
+```
+
+---
+
+### 5. Get Offer Categories
+```http
+GET /api/v1/offers/categories/
+```
+
+**Response (200):**
+```json
+[
+  {
+    "id": 1,
+    "name": "Seasonal",
+    "slug": "seasonal"
+  },
+  {
+    "id": 2,
+    "name": "Corporate",
+    "slug": "corporate"
+  }
+]
+```
+
+---
+
+## 💚 Health Check Endpoint
+
+```http
+GET /api/v1/health/
+```
+
+**Response (200):**
+```json
+{
+  "status": "healthy",
+  "timestamp": 1713607800.123,
+  "database": "connected",
+  "cache": "connected",
+  "response_time_ms": 45.23
+}
+```
+
+---
+
+## 📱 Frontend Integration Guide
+
+### Setup
+
+1. **Store Auth Token:**
+```javascript
+// After login
+localStorage.setItem('access_token', response.access);
+localStorage.setItem('refresh_token', response.refresh);
+```
+
+2. **Create API Client:**
+```javascript
+const apiClient = {
+  baseURL: 'http://localhost/api/v1', // Change to production URL
+  
+  async request(endpoint, options = {}) {
+    const token = localStorage.getItem('access_token');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    };
+    
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      ...options,
+      headers
+    });
+    
+    if (response.status === 401) {
+      // Token expired, refresh or redirect to login
+      window.location.href = '/login';
     }
-  }'
+    
+    return response.json();
+  },
+  
+  get(endpoint) {
+    return this.request(endpoint);
+  },
+  
+  post(endpoint, data) {
+    return this.request(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+  
+  put(endpoint, data) {
+    return this.request(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+};
 ```
 
-### Example 3: Hotel Search with Filters
+3. **Use in Components:**
+```javascript
+// Get hotels
+const hotels = await apiClient.get('/hotels/?page=1');
+
+// Search hotels
+const results = await apiClient.get(
+  '/hotels/search/?city=Karachi&check_in=2024-05-01&check_out=2024-05-05&guests=2'
+);
+
+// Create booking
+const booking = await apiClient.post('/bookings/create/', {
+  hotel_id: 'hotel-uuid',
+  room_id: 'room-uuid',
+  check_in: '2024-05-01',
+  check_out: '2024-05-05',
+  guests: 2,
+  guest_name: 'John Doe',
+  guest_email: 'john@example.com',
+  guest_phone: '+1234567890'
+});
+```
+
+---
+
+## 🚀 Server Deployment (Production)
+
+### Prerequisites
+- Linux server (Ubuntu 20.04+ recommended)
+- Docker & Docker Compose
+- Domain name with SSL certificate (Let's Encrypt recommended)
+
+### Step 1: Prepare Server
+
 ```bash
-curl -X GET "http://localhost:8000/api/v1/hotels/search/?location=Miami&star_rating=4&min_price=100&max_price=300"
+# SSH into server
+ssh user@your-server-ip
+
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Install Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
 ```
 
-## 🧪 Testing
-
-### Run Tests
-```bash
-# Run all tests
-python manage.py test
-
-# Run specific app tests
-python manage.py test bookings
-python manage.py test core
-python manage.py test accounts
-
-# Run with coverage
-pip install coverage
-coverage run --source='.' manage.py test
-coverage report
-```
-
-### Test API Endpoints
-Use the provided Postman collection or test with curl:
+### Step 2: Clone & Setup Project
 
 ```bash
-# Test authentication
-curl -X POST "http://localhost:8000/api/v1/auth/login/" \
-  -H "Content-Type: application/json" \
-  -d '{"username": "testuser", "password": "testpass"}'
+# Clone repository
+git clone <your-repo-url> /opt/hotel-booking-api
+cd /opt/hotel-booking-api
 
-# Test hotel search
-curl -X GET "http://localhost:8000/api/v1/hotels/search/?location=New York"
+# Create production .env
+cp .env .env.production
+nano .env.production  # Edit values below
 ```
 
-## 🚀 Deployment
+### Step 3: Update .env.production
 
-### Production Checklist
-- [ ] Set `DJANGO_SETTINGS_MODULE=hotel_booking.deployment`
-- [ ] Configure PostgreSQL database
-- [ ] Set up Redis for caching
-- [ ] Configure email backend
-- [ ] Set up file storage (AWS S3 recommended)
-- [ ] Configure domain and SSL certificate
-- [ ] Set up monitoring and logging
-- [ ] Configure backup strategy
+```env
+# DEPLOYMENT MODE
+ENVIRONMENT=production
+DEBUG=False
 
-### Environment Variables
+# APPLICATION SECURITY (CHANGE THESE!)
+SECRET_KEY=<generate-new-secure-key>
+ALLOWED_HOSTS=your-domain.com,api.your-domain.com,www.your-domain.com
+
+# DOMAIN & SSL
+DOMAIN_NAME=api.your-domain.com
+USE_HTTPS=True
+
+# DATABASE (CHANGE PASSWORD!)
+DB_PASSWORD=<strong-random-password>
+
+# SSL/TLS SECURITY
+SECURE_SSL_REDIRECT=True
+SECURE_HSTS_SECONDS=31536000
+SESSION_COOKIE_SECURE=True
+CSRF_COOKIE_SECURE=True
+
+# EMAIL (Configure SMTP)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=your-email@gmail.com
+EMAIL_HOST_PASSWORD=<your-app-password>
+
+# CORS (Allow your frontend domain)
+CORS_ALLOWED_ORIGINS=https://your-domain.com,https://www.your-domain.com
+
+# Django Superuser
+DJANGO_SUPERUSER_PASSWORD=<strong-admin-password>
+```
+
+### Step 4: Generate SSL Certificate
+
 ```bash
-# Required for production
-DJANGO_SECRET_KEY=your-secret-key
-DATABASE_URL=postgresql://user:pass@host:port/db
-REDIS_URL=redis://host:port/db
-EMAIL_HOST=smtp.yourdomain.com
-EMAIL_HOST_USER=noreply@yourdomain.com
-EMAIL_HOST_PASSWORD=your-email-password
-AWS_ACCESS_KEY_ID=your-aws-key
-AWS_SECRET_ACCESS_KEY=your-aws-secret
-AWS_STORAGE_BUCKET_NAME=your-bucket-name
+# Using Let's Encrypt (Recommended for production)
+sudo apt install certbot -y
+
+# Generate certificate
+sudo certbot certonly --standalone -d your-domain.com -d api.your-domain.com
+
+# Copy to project
+sudo cp /etc/letsencrypt/live/your-domain.com/fullchain.pem ./certs/cert.pem
+sudo cp /etc/letsencrypt/live/your-domain.com/privkey.pem ./certs/privkey.pem
+sudo chown $USER:$USER ./certs/*
 ```
+
+### Step 5: Start Services
+
+```bash
+# Load production env
+export $(cat .env.production | xargs)
+
+# Build and start
+docker-compose up -d
+
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs -f web
+```
+
+### Step 6: Configure Firewall
+
+```bash
+# UFW (Ubuntu)
+sudo ufw allow 22/tcp   # SSH
+sudo ufw allow 80/tcp   # HTTP
+sudo ufw allow 443/tcp  # HTTPS
+sudo ufw enable
+```
+
+### Step 7: Auto-Renew SSL Certificate
+
+```bash
+# Create renewal script
+sudo crontab -e
+
+# Add this line (renews daily at 2 AM)
+0 2 * * * certbot renew --quiet && cp /etc/letsencrypt/live/your-domain.com/fullchain.pem /opt/hotel-booking-api/certs/cert.pem && cp /etc/letsencrypt/live/your-domain.com/privkey.pem /opt/hotel-booking-api/certs/privkey.pem && docker-compose -f /opt/hotel-booking-api/docker-compose.yml restart nginx
+```
+
+### Step 8: Monitor & Maintain
+
+```bash
+# Check logs in real-time
+docker-compose logs -f
+
+# Backup database
+docker-compose exec db pg_dump -U hotelapi_user hotelMaarDB > backup.sql
+
+# Restart services
+docker-compose restart
+
+# View resource usage
+docker stats
+```
+
+---
+
+## 🐛 Common Issues & Solutions
+
+| Issue | Solution |
+|-------|----------|
+| **Connection refused** | Wait 30 seconds for services to start, check logs: `docker-compose logs web` |
+| **Port 80/443 already in use** | Change ports in docker-compose.yml or kill process: `lsof -i :80` |
+| **Database connection error** | Check DB credentials in .env, ensure DB service is healthy: `docker-compose ps` |
+| **CORS error on frontend** | Update `CORS_ALLOWED_ORIGINS` in .env to include your frontend URL |
+| **SSL certificate error** | Use self-signed cert for dev (working by default), use Let's Encrypt for production |
+
+---
+
+## 📞 Support
+
+For issues and questions:
+1. Check logs: `docker-compose logs -f`
+2. Visit API Swagger docs: `http://localhost/api/v1/docs/`
+3. Check .env configuration
+4. Ensure all services are running: `docker-compose ps`
+
+---
+
+## 📄 License
+
+Proprietary - Mar Hotels
