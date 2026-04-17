@@ -168,14 +168,14 @@ class Booking(models.Model):
         blank=True,
         related_name='bookings'
     )
-        # Soft delete fields for data recovery and audit trail
-    is_deleted = models.BooleanField(default=False, db_index=True, help_text=\"Whether booking is soft-deleted\")
-    deleted_at = models.DateTimeField(null=True, blank=True, help_text=\"Timestamp of soft deletion\")
-    deleted_reason = models.CharField(max_length=500, blank=True, null=True, help_text=\"Reason for deletion\")
+    # Soft delete fields for data recovery and audit trail
+    is_deleted = models.BooleanField(default=False, db_index=True, help_text="Whether booking is soft-deleted")
+    deleted_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp of soft deletion")
+    deleted_reason = models.CharField(max_length=500, blank=True, null=True, help_text="Reason for deletion")
     
     # Custom manager that excludes soft-deleted records by default
     objects = BookingManager()
-        class Meta:
+    class Meta:
         db_table = 'booking'
         ordering = ['-created_at']
         # Comprehensive indexes for high-concurrency production environment
