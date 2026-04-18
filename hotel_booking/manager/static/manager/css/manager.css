@@ -37,6 +37,8 @@ body {
   background: var(--white);
   color: var(--amber-600);
   position: fixed;
+  top: 0;
+  left: 0;
   height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
@@ -882,6 +884,27 @@ textarea.form-control {
   color: var(--muted);
 }
 
+/* Sidebar overlay - default hidden */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  display: none !important;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.sidebar-overlay.visible {
+  display: block !important;
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* Responsive design */
 @media (max-width: 992px) {
   .dashboard-grid {
@@ -892,12 +915,20 @@ textarea.form-control {
 @media (max-width: 768px) {
   #sidebar-wrapper {
     width: 280px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
     transform: translateX(-100%);
     box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    will-change: transform;
+    pointer-events: auto;
   }
   
   #sidebar-wrapper.open {
     transform: translateX(0);
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.2);
+    pointer-events: auto;
   }
   
   /* Show text labels on mobile when sidebar is open */
@@ -922,24 +953,14 @@ textarea.form-control {
   }
   
   #page-content-wrapper {
-    margin-left: 0;
+    margin-left: 0 !important;
     padding: 1rem;
     position: relative;
+    z-index: 1;
   }
   
-  /* Overlay when sidebar is open */
-  .sidebar-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-  }
-  
-  #sidebar-wrapper.open + .sidebar-overlay {
+  /* Overlay appears with sidebar */
+  .sidebar-overlay.visible {
     display: block;
   }
   

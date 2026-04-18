@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'core',
     'manager',
     'offers',
+    'payments',  # Tap Payments integration app
 ]
 
 MIDDLEWARE = [

@@ -14,6 +14,8 @@ Additional Endpoints:
 8. GET /bookings/<id>/audit-history/ - Get booking change audit trail
 9. GET /bookings/user/<user_id>/ - Get bookings for specific user
 10. GET /bookings/room/<room_id>/ - Get bookings for specific room
+
+Note: Payment endpoints are in the separate 'payments' app
 """
 from django.urls import path
 from . import views
@@ -28,7 +30,7 @@ urlpatterns = [
     path('<int:pk>/update/', views.BookingUpdateAPIView.as_view(), name='booking-update'),      # UPDATE
     path('<int:pk>/delete/', views.BookingDeleteAPIView.as_view(), name='booking-delete'),      # DELETE (Soft)
     
-    # NEW: Additional business operations
+    # Additional business operations
     path('<int:pk>/confirm/', views.BookingConfirmationAPIView.as_view(), name='booking-confirm'),           # Confirm pending booking
     path('<int:pk>/cancel/', views.BookingCancellationAPIView.as_view(), name='booking-cancel'),            # Cancel with refund
     path('<int:pk>/audit-history/', views.BookingAuditHistoryAPIView.as_view(), name='booking-audit-history'), # Audit trail

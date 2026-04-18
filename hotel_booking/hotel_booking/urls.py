@@ -37,6 +37,7 @@ urlpatterns = [
     path('api/v1/hotels/', include('core.urls')),
     path('api/v1/bookings/', include('bookings.urls')),
     path('api/v1/offers/', include('offers.urls')),
+    path('api/v1/payments/', include('payments.urls')),  # Payments (Tap integration)
 ]
 
 

@@ -17,12 +17,12 @@ from drf_spectacular.types import OpenApiTypes
 from decimal import Decimal
 
 # Local imports
-from .models import Offer, OfferCategory, OfferHighlight, OfferImage
+from .models import Offer, OfferCategory, OfferHighlight, OfferImage, OfferApplication
 from .serializers import (
     OfferCategorySerializer, OfferCategoryListSerializer,
     OfferListSerializer, OfferDetailSerializer, OfferCreateUpdateSerializer,
     OfferSearchSerializer, OfferCalculationSerializer, OfferCalculationResponseSerializer,
-    OfferHighlightSerializer, OfferImageSerializer
+    OfferHighlightSerializer, OfferImageSerializer, OfferApplicationSerializer
 )
 from .permissions import IsAdminOrManagerOrReadOnly, IsAdminOrManagerPermission
 from core.models import Hotel, RoomType
@@ -658,3 +658,111 @@ class OffersByCategoryView(APIView):
                 })
         
         return Response(result)
+
+
+class OfferApplicationCreateView(generics.CreateAPIView):
+    """
+    Create a new offer application/inquiry
+    
+    POST: Submit a customer application for an offer
+    """
+    
+    queryset = OfferApplication.objects.all()
+    serializer_class = OfferApplicationSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def perform_create(self, serializer):
+        """Save the application and send notification email"""
+        application = serializer.save()
+        
+        # Send notification email to customer
+        try:
+            from django.core.mail import send_mail
+            from django.conf import settings
+            
+            subject = f"Offer Application Received - {application.offer.name}"
+            message = f"""
+Hello {application.full_name},
+
+Thank you for your interest in our special offer: {application.offer.name} at {application.offer.hotel.name}
+
+We have received your application and our team will contact you shortly at {application.phone} to confirm your booking.
+
+Application Details:
+- Offer: {application.offer.name}
+- Hotel: {application.offer.hotel.name}
+- Number of Guests: {application.number_of_guests}
+- Check-in: {application.preferred_check_in}
+- Check-out: {application.preferred_check_out}
+
+Best regards,
+{application.offer.hotel.name} Team
+            """
+            
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL or 'noreply@hotel.com',
+                [application.email],
+                fail_silently=True,
+            )
+            
+            # Also send notification to admin
+            admin_subject = f"New Offer Application - {application.offer.name}"
+            admin_message = f"""
+New offer application received:
+
+Customer: {application.full_name}
+Email: {application.email}
+Phone: {application.phone}
+Offer: {application.offer.name}
+Hotel: {application.offer.hotel.name}
+
+Booking Details:
+- Guests: {application.number_of_guests}
+- Check-in: {application.preferred_check_in}
+- Check-out: {application.preferred_check_out}
+
+Message: {application.message or 'No message provided'}
+
+Please review and contact the customer to confirm the booking.
+            """
+            
+            send_mail(
+                admin_subject,
+                admin_message,
+                settings.DEFAULT_FROM_EMAIL or 'noreply@hotel.com',
+                [settings.ADMINS_EMAIL or 'admin@hotel.com'],
+                fail_silently=True,
+            )
+        
+        except Exception as e:
+            # Log the error but don't fail the application creation
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send offer application email: {e}")
+    
+    @extend_schema(
+        summary="Submit Offer Application",
+        description="Submit a customer application for a special offer. Includes automatic email notifications.",
+        tags=["Offers"],
+        examples=[
+            OpenApiExample(
+                "Offer Application Example",
+                value={
+                    "offer": "550e8400-e29b-41d4-a716-446655440000",
+                    "full_name": "John Doe",
+                    "email": "john@example.com",
+                    "phone": "+966 5X XXX XXXX",
+                    "number_of_guests": 2,
+                    "preferred_check_in": "2026-05-15",
+                    "preferred_check_out": "2026-05-20",
+                    "message": "We would like a room with a sea view if possible",
+                    "privacy_agreed": True
+                }
+            )
+        ]
+    )
+    def post(self, request, *args, **kwargs):
+        """Handle POST request for offer application"""
+        return super().post(request, *args, **kwargs)

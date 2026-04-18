@@ -36,11 +36,13 @@
       <div class="card-body p-4">
         {% if messages %}
           {% for message in messages %}
+            {% if 'error' in message.tags %}
             <div class="alert alert-{{ message.tags|lower }} alert-dismissible fade show" role="alert">
-              <i class="fa-solid fa-{% if message.tags == 'error' %}exclamation-circle{% else %}check-circle{% endif %} me-2"></i>
+              <i class="fa-solid fa-exclamation-circle me-2"></i>
               {{ message }}
               <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
+            {% endif %}
           {% endfor %}
         {% endif %}
 

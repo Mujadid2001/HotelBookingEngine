@@ -56,6 +56,10 @@ class ManagerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
 def manager_logout(request):
     """Simple logout function that redirects to manager login."""
     logout(request)
+    # Clear all messages from session to prevent showing login success message
+    if '_messages' in request.session:
+        del request.session['_messages']
+    request.session.modified = True
     return redirect('manager:login')
 
 
@@ -881,6 +885,10 @@ class BookingCreateView(BaseCreateView):
     form_class = BookingForm
     template_name = 'manager/form.html'
     permission_required = 'bookings.add_booking'
+    
+    def get_success_url(self):
+        """Redirect to the created booking's detail page"""
+        return reverse_lazy('manager:booking_detail', kwargs={'pk': self.object.pk})
 
 
 class BookingUpdateView(BaseUpdateView):
@@ -888,6 +896,10 @@ class BookingUpdateView(BaseUpdateView):
     form_class = BookingForm
     template_name = 'manager/form.html'
     permission_required = 'bookings.change_booking'
+    
+    def get_success_url(self):
+        """Redirect to the updated booking's detail page"""
+        return reverse_lazy('manager:booking_detail', kwargs={'pk': self.object.pk})
 
 
 class BookingDeleteView(BaseDeleteView):
@@ -978,11 +990,7 @@ class GlobalSearchView(ManagerRequiredMixin, View):
         page = request.GET.get('page', 1)
         
         if not query:
-            return render(request, 'manager/search_results.html', {
-                'query': query,
-                'results': {},
-                'total_results': 0
-            })
+            return redirect('manager:dashboard')
         
         results = {}
         total_results = 0

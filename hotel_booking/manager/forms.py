@@ -1,6 +1,6 @@
 from django import forms
 from core.models import Hotel, Room, RoomType, Extra, SeasonalPricing, RoomAmenity, RoomImage, RoomTypeAmenity
-from bookings.models import Booking
+from bookings.models import Booking, RefundPolicy
 from core.models import RoomAmenity, RoomImage, RoomTypeAmenity, SeasonalPricing
 from offers.models import Offer, OfferCategory, OfferHighlight, OfferImage
 

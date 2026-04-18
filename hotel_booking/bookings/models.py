@@ -109,6 +109,7 @@ class Booking(models.Model):
         max_digits=10, 
         decimal_places=2,
         editable=False,
+        default=0.00,
         help_text="Room rate × nights"
     )
     tax_amount = models.DecimalField(
@@ -127,6 +128,7 @@ class Booking(models.Model):
         max_digits=10, 
         decimal_places=2,
         editable=False,
+        default=0.00,
         help_text="Final amount after taxes and discounts"
     )
     
@@ -220,14 +222,17 @@ class Booking(models.Model):
         if not self.booking_id:
             self.booking_id = self.generate_booking_id()
         
-        # Calculate nights
+        # Calculate nights FIRST (before pricing calculations)
         if self.check_in_date and self.check_out_date:
             self.nights = (self.check_out_date - self.check_in_date).days
         
-        # Calculate pricing breakdown
-        if self.room_rate and self.nights:
+        # Calculate pricing breakdown (now nights is available)
+        if self.room_rate:
             # Calculate subtotal (room rate × nights)
-            self.subtotal = self.room_rate * self.nights
+            if self.nights and self.nights > 0:
+                self.subtotal = self.room_rate * self.nights
+            else:
+                self.subtotal = self.room_rate
             
             # Calculate total with taxes and discounts
             total_before_tax = self.subtotal - self.discount_amount
@@ -311,6 +316,11 @@ class Booking(models.Model):
     def total_guests(self):
         """Return total number of guests"""
         return self.adults + self.children
+    
+    def get_absolute_url(self):
+        """Return the URL to view this booking in the manager"""
+        from django.urls import reverse
+        return reverse('manager:booking_detail', kwargs={'pk': self.pk})
     
     def __str__(self):
         return f"{self.booking_id} - {self.guest_full_name()} ({self.hotel.name})"
@@ -544,7 +554,7 @@ class BookingRefund(models.Model):
     booking = models.OneToOneField(
         Booking,
         on_delete=models.CASCADE,
-        related_name='refund',
+        related_name='booking_refund',
         help_text="Associated booking being refunded"
     )
     

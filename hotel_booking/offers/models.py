@@ -524,3 +524,101 @@ class OfferImage(TimestampedModel):
             ).exclude(pk=self.pk).update(is_primary=False)
         
         super().save(*args, **kwargs)
+
+
+class OfferApplication(TimestampedModel):
+    """Customer applications/inquiries for special offers"""
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('reviewed', 'Reviewed'),
+        ('contacted', 'Contacted'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('closed', 'Closed'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    offer = models.ForeignKey(
+        Offer,
+        on_delete=models.CASCADE,
+        related_name='applications'
+    )
+    
+    # Customer Information
+    full_name = models.CharField(
+        max_length=255,
+        help_text="Customer's full name"
+    )
+    email = models.EmailField(
+        help_text="Customer's email address"
+    )
+    phone = models.CharField(
+        max_length=20,
+        help_text="Customer's phone number"
+    )
+    
+    # Booking Details
+    number_of_guests = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)],
+        help_text="Number of guests"
+    )
+    preferred_check_in = models.DateField(
+        help_text="Preferred check-in date"
+    )
+    preferred_check_out = models.DateField(
+        help_text="Preferred check-out date"
+    )
+    
+    # Additional Information
+    message = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Customer's message or special requests"
+    )
+    privacy_agreed = models.BooleanField(
+        default=False,
+        help_text="Customer agreed to privacy policy"
+    )
+    
+    # Status Management
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        help_text="Current status of the application"
+    )
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Internal notes for staff"
+    )
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['offer', 'status']),
+            models.Index(fields=['email']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.full_name} - {self.offer.name} ({self.status})"
+    
+    def clean(self):
+        """Validate the application data"""
+        super().clean()
+        
+        # Validate dates
+        if self.preferred_check_in and self.preferred_check_out:
+            if self.preferred_check_in >= self.preferred_check_out:
+                raise ValidationError("Check-out date must be after check-in date")
+            
+            # Validate that dates are in the future
+            today = timezone.now().date()
+            if self.preferred_check_in < today:
+                raise ValidationError("Check-in date cannot be in the past")
+        
+        # Validate privacy agreement
+        if not self.privacy_agreed:
+            raise ValidationError("Privacy policy agreement is required")

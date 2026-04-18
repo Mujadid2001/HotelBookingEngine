@@ -5,7 +5,7 @@ from django.utils import timezone
 from decimal import Decimal
 
 # Local imports
-from .models import Offer, OfferCategory, OfferHighlight, OfferImage
+from .models import Offer, OfferCategory, OfferHighlight, OfferImage, OfferApplication
 from core.models import Hotel, RoomType
 
 
@@ -366,3 +366,44 @@ class OfferCalculationResponseSerializer(serializers.Serializer):
     original_price = serializers.DecimalField(max_digits=10, decimal_places=2)
     savings = serializers.DecimalField(max_digits=10, decimal_places=2)
     message = serializers.CharField(required=False)
+
+
+class OfferApplicationSerializer(serializers.ModelSerializer):
+    """Serializer for offer applications/inquiries"""
+    
+    offer_name = serializers.CharField(source='offer.name', read_only=True)
+    offer_hotel_name = serializers.CharField(source='offer.hotel.name', read_only=True)
+    
+    class Meta:
+        model = OfferApplication
+        fields = [
+            'id', 'offer', 'offer_name', 'offer_hotel_name',
+            'full_name', 'email', 'phone',
+            'number_of_guests', 'preferred_check_in', 'preferred_check_out',
+            'message', 'privacy_agreed', 'status', 'notes',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'status', 'notes', 'created_at', 'updated_at', 'offer_name', 'offer_hotel_name']
+    
+    def validate(self, data):
+        """Validate the application data"""
+        # Check if dates are valid
+        if data['preferred_check_in'] >= data['preferred_check_out']:
+            raise serializers.ValidationError({
+                'preferred_check_out': 'Check-out date must be after check-in date'
+            })
+        
+        # Check if dates are in the future
+        today = timezone.now().date()
+        if data['preferred_check_in'] < today:
+            raise serializers.ValidationError({
+                'preferred_check_in': 'Check-in date cannot be in the past'
+            })
+        
+        # Validate privacy agreement
+        if not data.get('privacy_agreed'):
+            raise serializers.ValidationError({
+                'privacy_agreed': 'You must agree to the privacy policy'
+            })
+        
+        return data

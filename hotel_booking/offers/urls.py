@@ -7,7 +7,8 @@ from .views import (
     OfferSearchView, OfferCalculationView,
     OfferHighlightListCreateView, OfferHighlightDetailView,
     OfferImageListCreateView, OfferImageDetailView,
-    OfferCategoryListCreateView, OfferCategoryDetailView, OffersByCategoryView
+    OfferCategoryListCreateView, OfferCategoryDetailView, OffersByCategoryView,
+    OfferApplicationCreateView
 )
 
 app_name = 'offers'
@@ -22,6 +23,7 @@ urlpatterns = [
     path('featured/', FeaturedOffersView.as_view(), name='featured-offers'),
     path('search/', OfferSearchView.as_view(), name='offer-search'),
     path('calculate/', OfferCalculationView.as_view(), name='offer-calculation'),
+    path('applications/', OfferApplicationCreateView.as_view(), name='offer-application-create'),
     
     # Main offer endpoints
     path('', OfferListCreateView.as_view(), name='offer-list-create'),
