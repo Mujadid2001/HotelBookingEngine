@@ -3,6 +3,14 @@ set -e
 
 cd /app/hotel_booking
 
+echo "=== env diagnostic ==="
+echo "DATABASE_URL present: $([ -n "${DATABASE_URL:-}" ] && echo YES || echo NO)"
+echo "DB_HOST: ${DB_HOST:-<unset>}"
+echo "SECRET_KEY present: $([ -n "${SECRET_KEY:-}" ] && echo YES || echo NO)"
+echo "ALLOWED_HOSTS: ${ALLOWED_HOSTS:-<unset>}"
+echo "PORT: ${PORT:-<unset>}"
+echo "====================="
+
 # Prefer DATABASE_URL (Railway/Render), fall back to individual DB_* vars (compose).
 if [ -n "${DATABASE_URL:-}" ]; then
   DB_HOST_VAL=$(python -c "from urllib.parse import urlparse; import os; print(urlparse(os.environ['DATABASE_URL']).hostname or '')")
