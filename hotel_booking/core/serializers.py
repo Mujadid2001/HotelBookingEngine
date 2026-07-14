@@ -1,5 +1,61 @@
 from rest_framework import serializers
-from .models import ContactMessage, Hotel, Room, RoomType, Extra
+from .models import (
+    ContactMessage, Hotel, Room, RoomType, Extra, SeasonalPricing,
+    RoomImage, RoomAmenity, RoomTypeAmenity
+)
+
+__all__ = [
+    'ContactMessageSerializer',
+    'HotelSerializer',
+    'RoomTypeSerializer',
+    'RoomSerializer',
+    'ExtraSerializer',
+    'RoomAvailabilitySerializer',
+    'RoomImageSerializer',
+    'RoomAmenitySerializer',
+    'RoomTypeAmenitySerializer',
+    'SeasonalPricingSerializer',
+]
+
+
+class HotelSerializer(serializers.ModelSerializer):
+    """Serializer for Hotel model"""
+    
+    class Meta:
+        model = Hotel
+        fields = '__all__'
+
+
+class RoomImageSerializer(serializers.ModelSerializer):
+    """Serializer for RoomImage model"""
+    
+    class Meta:
+        model = RoomImage
+        fields = '__all__'
+
+
+class RoomAmenitySerializer(serializers.ModelSerializer):
+    """Serializer for RoomAmenity model"""
+    
+    class Meta:
+        model = RoomAmenity
+        fields = '__all__'
+
+
+class RoomTypeAmenitySerializer(serializers.ModelSerializer):
+    """Serializer for RoomTypeAmenity model"""
+    
+    class Meta:
+        model = RoomTypeAmenity
+        fields = '__all__'
+
+
+class SeasonalPricingSerializer(serializers.ModelSerializer):
+    """Serializer for SeasonalPricing model"""
+    
+    class Meta:
+        model = SeasonalPricing
+        fields = '__all__'
 
 
 class ContactMessageSerializer(serializers.ModelSerializer):

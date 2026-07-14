@@ -1,6 +1,45 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import CustomUser, UserProfile
+from .models import CustomUser, UserProfile, EmailVerificationToken, PasswordResetToken, BlacklistedToken
+
+__all__ = [
+    'UserProfileSerializer',
+    'UserSerializer',
+    'UserRegistrationSerializer',
+    'LoginSerializer',
+    'PasswordChangeSerializer',
+    'UserUpdateSerializer',
+    'EmailVerificationTokenSerializer',
+    'PasswordResetTokenSerializer',
+    'BlacklistedTokenSerializer',
+]
+
+
+class EmailVerificationTokenSerializer(serializers.ModelSerializer):
+    """Serializer for EmailVerificationToken model"""
+    
+    class Meta:
+        model = EmailVerificationToken
+        fields = ['id', 'user', 'token', 'created_at', 'expires_at', 'used']
+        read_only_fields = ['id', 'token', 'created_at', 'used']
+
+
+class PasswordResetTokenSerializer(serializers.ModelSerializer):
+    """Serializer for PasswordResetToken model"""
+    
+    class Meta:
+        model = PasswordResetToken
+        fields = ['id', 'user', 'token', 'created_at', 'expires_at', 'used']
+        read_only_fields = ['id', 'token', 'created_at', 'used']
+
+
+class BlacklistedTokenSerializer(serializers.ModelSerializer):
+    """Serializer for BlacklistedToken model"""
+    
+    class Meta:
+        model = BlacklistedToken
+        fields = ['id', 'jti', 'user', 'token_type', 'blacklisted_at', 'reason']
+        read_only_fields = ['id', 'jti', 'blacklisted_at']
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

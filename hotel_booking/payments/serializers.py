@@ -3,6 +3,12 @@ from rest_framework import serializers
 from django.utils.timesince import timesince
 from .models import Payment, TapPaymentTransaction
 
+__all__ = [
+    'PaymentSerializer',
+    'PaymentListSerializer',
+    'TapPaymentTransactionSerializer',
+]
+
 
 class TapPaymentTransactionSerializer(serializers.ModelSerializer):
     """Tap transaction serializer (read-only for security)"""

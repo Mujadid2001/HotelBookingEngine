@@ -1,8 +1,66 @@
 from rest_framework import serializers
 from django.utils import timezone
 from decimal import Decimal
-from .models import Booking, BookingAuditLog
+from .models import Booking, BookingAuditLog, RefundPolicy, BookingRefund
 from core.models import Hotel, Room
+
+__all__ = [
+    'BookingSerializer',
+    'BookingCreateSerializer',
+    'BookingUpdateSerializer',
+    'BookingListSerializer',
+    'BookingQuickSerializer',
+    'BookingAuditLogSerializer',
+    'RefundPolicySerializer',
+    'BookingRefundSerializer',
+]
+
+
+class RefundPolicySerializer(serializers.ModelSerializer):
+    """Serializer for RefundPolicy model"""
+    
+    class Meta:
+        model = RefundPolicy
+        fields = '__all__'
+
+
+class BookingRefundSerializer(serializers.ModelSerializer):
+    """Serializer for BookingRefund model"""
+    
+    REFUND_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ]
+    
+    REFUND_METHOD_CHOICES = [
+        ('original_payment', 'Original Payment Method'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('credit', 'Hotel Credit'),
+        ('manual', 'Manual (No Auto-Refund)'),
+    ]
+    
+    class Meta:
+        model = BookingRefund
+        fields = [
+            'id', 'booking', 'refund_amount', 'non_refundable_amount',
+            'refund_status', 'refund_method', 'refund_reason',
+            'transaction_id', 'refund_requested_at', 'refund_processed_at',
+            'notes'
+        ]
+        read_only_fields = [
+            'id', 'refund_status', 'transaction_id', 
+            'refund_requested_at', 'refund_processed_at'
+        ]
+    
+    def validate(self, data):
+        instance = self.instance
+        
+        if not instance and 'refund_status' not in data:
+            data['refund_status'] = 'pending'
+        
+        return data
 
 
 class BookingSerializer(serializers.ModelSerializer):
